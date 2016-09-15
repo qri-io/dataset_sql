@@ -67,6 +67,9 @@ func forceEOF(yylex interface{}) {
   colIdent    ColIdent
   colIdents   []ColIdent
   tableIdent  TableIdent
+
+  colDef      *ColDef
+  colDefs     ColDefs
 }
 
 %token LEX_ERROR
@@ -162,6 +165,10 @@ func forceEOF(yylex interface{}) {
 %type <empty> as_opt
 %type <empty> force_eof
 
+%type <colDef> column_definition
+%type <colDefs> column_definition_list_opt column_definition_list
+// %type <colAtts> column_atts
+
 %start any_command
 
 %%
@@ -241,9 +248,9 @@ set_statement:
   }
 
 create_statement:
-  CREATE TABLE not_exists_opt table_id force_eof
+  CREATE TABLE not_exists_opt table_id column_definition_list_opt force_eof
   {
-    $$ = &DDL{Action: CreateStr, NewName: $4}
+    $$ = &DDL{Action: CreateStr, NewName: $4, ColDefs: $5 }
   }
 | CREATE constraint_opt INDEX ID using_opt ON table_id force_eof
   {
@@ -1016,6 +1023,61 @@ lock_opt:
     $$ = ShareModeStr
   }
 
+// yeah, I added this shit in. -@formalfiction
+// column_atts:
+//   {
+//     $$ = ColAtts{}
+//   }
+// | column_atts NOT NULL
+//   {
+//     $$ = append($$, AST_NOT_NULL)
+//   }
+// 
+// | column_atts NULL
+// | column_atts DEFAULT STRING
+//   {
+//     node := StrVal($3)
+//     $$ = append($$, "default " + String(node))
+//   }
+// | column_atts DEFAULT NUMBER
+//   {
+//     node := NumVal($3)
+//     $$ = append($$, "default " + String(node))
+//   }
+// | column_atts AUTO_INCREMENT
+//   {
+//     $$ = append($$, AST_AUTO_INCREMENT)
+//   }
+// | column_atts key_att
+// {
+//     $$ = append($$, $2)
+// }
+
+column_definition:
+  table_name table_id 
+  {
+    $$ = &ColDef{ColName: $1, ColType: $2 }
+  }
+
+column_definition_list:
+  column_definition
+  {
+    $$ = ColDefs{$1}
+  }
+| column_definition_list ',' column_definition
+  {
+    $$ = append($$, $3)
+  }
+  
+column_definition_list_opt:
+  {
+    $$ = nil
+  }
+| openb column_definition_list closeb
+  {
+    $$ = $2
+  }
+
 column_list_opt:
   {
     $$ = nil
@@ -1034,6 +1096,7 @@ column_list:
   {
     $$ = append($$, $3)
   }
+// </ShitAdded>
 
 on_dup_opt:
   {

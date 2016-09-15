@@ -373,10 +373,12 @@ func (node *Set) WalkSubtree(visit Visit) error {
 // DDL represents a CREATE, ALTER, DROP or RENAME statement.
 // Table is set for AlterStr, DropStr, RenameStr.
 // NewName is set for AlterStr, CreateStr, RenameStr.
+// ColDefs is set for CreateStr
 type DDL struct {
 	Action   string
 	Table    TableIdent
 	NewName  TableIdent
+	ColDefs  ColDefs
 	IfExists bool
 }
 
@@ -392,7 +394,11 @@ const (
 func (node *DDL) Format(buf *TrackedBuffer) {
 	switch node.Action {
 	case CreateStr:
-		buf.Myprintf("%s table %v", node.Action, node.NewName)
+		if len(node.ColDefs) > 0 {
+			buf.Myprintf("%s table %v %v", node.Action, node.NewName, node.ColDefs)
+		} else {
+			buf.Myprintf("%s table %v", node.Action, node.NewName)
+		}
 	case DropStr:
 		exists := ""
 		if node.IfExists {
@@ -540,6 +546,69 @@ func (node Nextval) Format(buf *TrackedBuffer) {
 
 // WalkSubtree walks the nodes of the subtree
 func (node Nextval) WalkSubtree(visit Visit) error {
+	return nil
+}
+
+// ColAtts represents column attricytes in a create table statement
+// type ColAtts []string
+
+// func (node ColAtts) Format(buf *TrackedBuffer) {
+// 	prefix := " "
+// 	for _, v := range node {
+// 		if v != "" {
+// 			buf.Myprintf("%s%s", prefix, v)
+// 		}
+// 	}
+// }
+
+// func (node ColAtts) WalkSubtree(visit Visit) error {
+// 	// TODO - should this return nil? there are no
+// 	// instructions 'beneath' ColAtts
+// 	return nil
+// }
+
+// ColDef represents a column definition for a create table statement
+type ColDef struct {
+	ColName *TableName
+	ColType TableIdent
+}
+
+func (node *ColDef) Format(buf *TrackedBuffer) {
+	buf.Myprintf("%v %v", node.ColName, node.ColType)
+}
+
+func (node *ColDef) WalkSubtree(visit Visit) error {
+	if node == nil {
+		return nil
+	}
+	return Walk(visit,
+		node.ColName,
+		node.ColType)
+}
+
+// ColDefs is a list of ColDef used in a create table statement
+type ColDefs []*ColDef
+
+func (node ColDefs) Format(buf *TrackedBuffer) {
+	if len(node) == 0 {
+		return
+	}
+
+	prefix := ""
+	buf.Myprintf("(")
+	for i := 0; i < len(node); i++ {
+		buf.Myprintf("%s%v", prefix, node[i])
+		prefix = ", "
+	}
+	buf.Myprintf(")")
+}
+
+func (node ColDefs) WalkSubtree(visit Visit) error {
+	for _, n := range node {
+		if err := Walk(visit, n); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
