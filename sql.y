@@ -70,6 +70,8 @@ func forceEOF(yylex interface{}) {
 
   colDef      *ColDef
   colDefs     ColDefs
+  colConstr   *ColConstr
+  colConstrs  ColConstrs
 }
 
 %token LEX_ERROR
@@ -108,6 +110,7 @@ func forceEOF(yylex interface{}) {
 %token <empty> CREATE ALTER DROP RENAME ANALYZE
 %token <empty> TABLE INDEX VIEW TO IGNORE IF UNIQUE USING
 %token <empty> SHOW DESCRIBE EXPLAIN
+%token <empty> PRIMARY
 
 // MySQL reserved words that are unused by this grammar will map to this token.
 %token <empty> UNUSED
@@ -167,7 +170,8 @@ func forceEOF(yylex interface{}) {
 
 %type <colDef> column_definition
 %type <colDefs> column_definition_list_opt column_definition_list
-// %type <colAtts> column_atts
+%type <colConstr> column_constraint
+%type <colConstrs> column_constraint_list
 
 %start any_command
 
@@ -1024,39 +1028,43 @@ lock_opt:
   }
 
 // yeah, I added this shit in. -@formalfiction
-// column_atts:
+column_constraint:
+  NOT NULL
+  {
+    $$ = &ColConstr{ Constraint: ColConstrNotNullStr }
+  }
+| NULL
+  {
+    $$ = &ColConstr{ Constraint: ColConstrNullStr }
+  }
+// | DEFAULT sql_id
 //   {
-//     $$ = ColAtts{}
+//     $$ = &ColConstr{ Constraint: ColConstrDefaultStr, params : string($2) }
 //   }
-// | column_atts NOT NULL
-//   {
-//     $$ = append($$, AST_NOT_NULL)
-//   }
-// 
-// | column_atts NULL
-// | column_atts DEFAULT STRING
-//   {
-//     node := StrVal($3)
-//     $$ = append($$, "default " + String(node))
-//   }
-// | column_atts DEFAULT NUMBER
-//   {
-//     node := NumVal($3)
-//     $$ = append($$, "default " + String(node))
-//   }
-// | column_atts AUTO_INCREMENT
-//   {
-//     $$ = append($$, AST_AUTO_INCREMENT)
-//   }
-// | column_atts key_att
-// {
-//     $$ = append($$, $2)
-// }
+| PRIMARY KEY
+  {
+    $$ = &ColConstr{ Constraint: ColConstrPrimaryKeyStr }
+  }
+
+column_constraint_list:
+  column_constraint
+  {
+    $$ = ColConstrs{$1}
+  }
+| column_constraint_list column_constraint
+  {
+    $$ = append($$, $2)
+  }
+
 
 column_definition:
   table_name table_id 
   {
     $$ = &ColDef{ColName: $1, ColType: $2 }
+  }
+| table_name table_id column_constraint_list
+  {
+    $$ = &ColDef{ColName: $1, ColType: $2, Constraints: $3 }
   }
 
 column_definition_list:

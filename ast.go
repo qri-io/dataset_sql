@@ -549,32 +549,64 @@ func (node Nextval) WalkSubtree(visit Visit) error {
 	return nil
 }
 
-// ColAtts represents column attricytes in a create table statement
-// type ColAtts []string
+// ColConstr represents a column constraint in a create table statement
+type ColConstr struct {
+	Constraint string
+	params     string
+}
 
-// func (node ColAtts) Format(buf *TrackedBuffer) {
-// 	prefix := " "
-// 	for _, v := range node {
-// 		if v != "" {
-// 			buf.Myprintf("%s%s", prefix, v)
-// 		}
-// 	}
-// }
+const (
+	ColConstrNotNullStr    = "not null"
+	ColConstrNullStr       = "null"
+	ColConstrDefaultStr    = "default"
+	ColConstrUniqueStr     = "unique"
+	ColConstrPrimaryKeyStr = "primary key"
+)
 
-// func (node ColAtts) WalkSubtree(visit Visit) error {
-// 	// TODO - should this return nil? there are no
-// 	// instructions 'beneath' ColAtts
-// 	return nil
-// }
+func (node *ColConstr) Format(buf *TrackedBuffer) {
+	buf.Myprintf("%s", node.Constraint)
+}
+
+func (node *ColConstr) WalkSubtree(visit Visit) error {
+	return nil
+}
+
+type ColConstrs []*ColConstr
+
+func (node ColConstrs) Format(buf *TrackedBuffer) {
+	if len(node) == 0 {
+		return
+	}
+
+	prefix := ""
+	for i := 0; i < len(node); i++ {
+		buf.Myprintf("%s%v", prefix, node[i])
+		prefix = " "
+	}
+}
+
+func (node ColConstrs) WalkSubtree(visit Visit) error {
+	for _, n := range node {
+		if err := Walk(visit, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // ColDef represents a column definition for a create table statement
 type ColDef struct {
-	ColName *TableName
-	ColType TableIdent
+	ColName     *TableName
+	ColType     TableIdent
+	Constraints ColConstrs
 }
 
 func (node *ColDef) Format(buf *TrackedBuffer) {
-	buf.Myprintf("%v %v", node.ColName, node.ColType)
+	if len(node.Constraints) == 0 {
+		buf.Myprintf("%v %v", node.ColName, node.ColType)
+	} else {
+		buf.Myprintf("%v %v %v", node.ColName, node.ColType, node.Constraints)
+	}
 }
 
 func (node *ColDef) WalkSubtree(visit Visit) error {

@@ -622,8 +622,11 @@ func TestCaseSensitivity(t *testing.T) {
 		input:  "CREATE TABLE A",
 		output: "create table A",
 	}, {
-		input:  "CREATE TABLE max_population (year boolean, news text)",
-		output: "create table max_population (year boolean, news text)",
+		input:  "CREATE TABLE a (year boolean, news text)",
+		output: "create table a (year boolean, news text)",
+	}, {
+		input:  "CREATE TABLE a (year boolean, news text NOT NULL)",
+		output: "create table a (year boolean, news text not null)",
 	}, {
 		input:  "create view A",
 		output: "create table a",
