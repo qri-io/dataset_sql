@@ -6,76 +6,115 @@ package sqlparser
 
 import "testing"
 
-func TestLimits(t *testing.T) {
-	var l *Limit
-	o, r, err := l.Limits()
-	if o != nil || r != nil || err != nil {
-		t.Errorf("got %v, %v, %v, want nils", o, r, err)
+func TestSelect(t *testing.T) {
+	tree, err := Parse("select * from t where a = 1")
+	if err != nil {
+		t.Error(err)
+	}
+	expr := tree.(*Select).Where.Expr
+
+	sel := &Select{}
+	sel.AddWhere(expr)
+	buf := NewTrackedBuffer(nil)
+	sel.Where.Format(buf)
+	want := " where a = 1"
+	if buf.String() != want {
+		t.Errorf("where: %q, want %s", buf.String(), want)
+	}
+	sel.AddWhere(expr)
+	buf = NewTrackedBuffer(nil)
+	sel.Where.Format(buf)
+	want = " where a = 1 and a = 1"
+	if buf.String() != want {
+		t.Errorf("where: %q, want %s", buf.String(), want)
+	}
+	sel = &Select{}
+	sel.AddHaving(expr)
+	buf = NewTrackedBuffer(nil)
+	sel.Having.Format(buf)
+	want = " having a = 1"
+	if buf.String() != want {
+		t.Errorf("having: %q, want %s", buf.String(), want)
+	}
+	sel.AddHaving(expr)
+	buf = NewTrackedBuffer(nil)
+	sel.Having.Format(buf)
+	want = " having a = 1 and a = 1"
+	if buf.String() != want {
+		t.Errorf("having: %q, want %s", buf.String(), want)
 	}
 
-	l = &Limit{Offset: NumVal([]byte("aa"))}
-	_, _, err = l.Limits()
-	wantErr := "strconv.ParseInt: parsing \"aa\": invalid syntax"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
+	// OR clauses must be parenthesized.
+	tree, err = Parse("select * from t where a = 1 or b = 1")
+	if err != nil {
+		t.Error(err)
+	}
+	expr = tree.(*Select).Where.Expr
+	sel = &Select{}
+	sel.AddWhere(expr)
+	buf = NewTrackedBuffer(nil)
+	sel.Where.Format(buf)
+	want = " where (a = 1 or b = 1)"
+	if buf.String() != want {
+		t.Errorf("where: %q, want %s", buf.String(), want)
+	}
+	sel = &Select{}
+	sel.AddHaving(expr)
+	buf = NewTrackedBuffer(nil)
+	sel.Having.Format(buf)
+	want = " having (a = 1 or b = 1)"
+	if buf.String() != want {
+		t.Errorf("having: %q, want %s", buf.String(), want)
+	}
+}
+
+func TestWhere(t *testing.T) {
+	var w *Where
+	buf := NewTrackedBuffer(nil)
+	w.Format(buf)
+	if buf.String() != "" {
+		t.Errorf("w.Format(nil): %q, want \"\"", buf.String())
+	}
+	w = NewWhere(WhereStr, nil)
+	buf = NewTrackedBuffer(nil)
+	w.Format(buf)
+	if buf.String() != "" {
+		t.Errorf("w.Format(&Where{nil}: %q, want \"\"", buf.String())
+	}
+}
+
+func TestIsAggregate(t *testing.T) {
+	f := FuncExpr{Name: "avg"}
+	if !f.IsAggregate() {
+		t.Error("IsAggregate: false, want true")
 	}
 
-	l = &Limit{Offset: NumVal([]byte("2"))}
-	_, _, err = l.Limits()
-	wantErr = "unexpected node for rowcount: <nil>"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
+	f = FuncExpr{Name: "Avg"}
+	if !f.IsAggregate() {
+		t.Error("IsAggregate: false, want true")
 	}
 
-	l = &Limit{Offset: StrVal([]byte("2"))}
-	_, _, err = l.Limits()
-	wantErr = "unexpected node for offset: [50]"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
+	f = FuncExpr{Name: "foo"}
+	if f.IsAggregate() {
+		t.Error("IsAggregate: true, want false")
 	}
+}
 
-	l = &Limit{Offset: NumVal([]byte("2")), Rowcount: NumVal([]byte("aa"))}
-	_, _, err = l.Limits()
-	wantErr = "strconv.ParseInt: parsing \"aa\": invalid syntax"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
+func TestColIdent(t *testing.T) {
+	str := NewColIdent("Ab")
+	if str.String() != "Ab" {
+		t.Errorf("String=%s, want Ab", str.Original())
 	}
-
-	l = &Limit{Offset: NumVal([]byte("2")), Rowcount: NumVal([]byte("3"))}
-	o, r, err = l.Limits()
-	if o.(int64) != 2 || r.(int64) != 3 || err != nil {
-		t.Errorf("got %v %v %v, want 2, 3, nil", o, r, err)
+	if str.Original() != "Ab" {
+		t.Errorf("Val=%s, want Ab", str.Original())
 	}
-
-	l = &Limit{Offset: ValArg([]byte(":a")), Rowcount: NumVal([]byte("3"))}
-	o, r, err = l.Limits()
-	if o.(string) != ":a" || r.(int64) != 3 || err != nil {
-		t.Errorf("got %v %v %v, want :a, 3, nil", o, r, err)
+	if str.Lowered() != "ab" {
+		t.Errorf("Val=%s, want ab", str.Lowered())
 	}
-
-	l = &Limit{Offset: nil, Rowcount: NumVal([]byte("3"))}
-	o, r, err = l.Limits()
-	if o != nil || r.(int64) != 3 || err != nil {
-		t.Errorf("got %v %v %v, want nil, 3, nil", o, r, err)
+	if !str.Equal(NewColIdent("aB")) {
+		t.Error("str.Equal(NewColIdent(aB))=false, want true")
 	}
-
-	l = &Limit{Offset: nil, Rowcount: ValArg([]byte(":a"))}
-	o, r, err = l.Limits()
-	if o != nil || r.(string) != ":a" || err != nil {
-		t.Errorf("got %v %v %v, want nil, :a, nil", o, r, err)
-	}
-
-	l = &Limit{Offset: NumVal([]byte("-2")), Rowcount: NumVal([]byte("0"))}
-	_, _, err = l.Limits()
-	wantErr = "negative offset: -2"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
-	}
-
-	l = &Limit{Offset: NumVal([]byte("2")), Rowcount: NumVal([]byte("-2"))}
-	_, _, err = l.Limits()
-	wantErr = "negative limit: -2"
-	if err == nil || err.Error() != wantErr {
-		t.Errorf("got %v, want %s", err, wantErr)
+	if !str.EqualString("ab") {
+		t.Error("str.EqualString(ab)=false, want true")
 	}
 }

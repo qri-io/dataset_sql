@@ -2,64 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//Modified by Wenbin Xiao 2015.04.18
-
 package sqlparser
 
 // analyzer.go contains utility analysis functions.
 
 import (
-	"errors"
 	"fmt"
-	"github.com/xwb1989/sqlparser/dependency/sqltypes"
+
+	"github.com/qri-io/sqlparser/deps/sqltypes"
 )
 
 // GetTableName returns the table name from the SimpleTableExpr
 // only if it's a simple expression. Otherwise, it returns "".
 func GetTableName(node SimpleTableExpr) string {
-	if n, ok := node.(*TableName); ok && n.Qualifier == nil {
+	if n, ok := node.(*TableName); ok && n.Qualifier == "" {
 		return string(n.Name)
 	}
 	// sub-select or '.' expression
-	return ""
-}
-
-// Get the primary key ColumnDefinition of the table, sqlNode must be a CreateTable struct
-func GetPrimaryKey(sqlNode SQLNode) (*ColumnDefinition, error) {
-	node, ok := sqlNode.(*CreateTable)
-	if !ok {
-		return nil, errors.New("fail to convert interface SQLNode to struct CreateTable")
-	}
-	for _, col := range node.ColumnDefinitions {
-		for _, att := range col.ColumnAtts {
-			if att == AST_PRIMARY_KEY {
-				return col, nil
-			}
-		}
-	}
-	return nil, errors.New("unable to find primary key")
-}
-
-//Get ColumnDefinition by name, sqlNode must be a CreateTable struct
-func GetColumnByName(sqlNode SQLNode, name string) (*ColumnDefinition, error) {
-	node, ok := sqlNode.(*CreateTable)
-	if !ok {
-		return nil, errors.New("fail to convert interface SQLNode to struct CreateTable")
-	}
-	for _, col := range node.ColumnDefinitions {
-		if col.ColName == name {
-			return col, nil
-		}
-	}
-	return nil, errors.New("unable to find the column")
-}
-
-// GetColName returns the column name, only if
-// it's a simple expression. Otherwise, it returns "".
-func GetColName(node Expr) string {
-	if n, ok := node.(*ColName); ok {
-		return string(n.Name)
-	}
 	return ""
 }
 
@@ -79,12 +38,11 @@ func IsValue(node ValExpr) bool {
 	return false
 }
 
-// HasINCaluse returns true if any of the conditions has an IN clause.
-func HasINClause(conditions []BoolExpr) bool {
-	for _, node := range conditions {
-		if c, ok := node.(*ComparisonExpr); ok && c.Operator == AST_IN {
-			return true
-		}
+// IsNull returns true if the ValExpr is SQL NULL
+func IsNull(node ValExpr) bool {
+	switch node.(type) {
+	case *NullVal:
+		return true
 	}
 	return false
 }
@@ -130,7 +88,7 @@ func AsInterface(node ValExpr) (interface{}, error) {
 	case StrVal:
 		return sqltypes.MakeString(node), nil
 	case NumVal:
-		n, err := sqltypes.BuildNumeric(string(node))
+		n, err := sqltypes.BuildIntegral(string(node))
 		if err != nil {
 			return nil, fmt.Errorf("type mismatch: %s", err)
 		}
