@@ -47,10 +47,14 @@ var keywords = map[string]int{
 	"asensitive":          UNUSED,
 	"before":              UNUSED,
 	"between":             BETWEEN,
-	"bigint":              UNUSED,
+	"bigint":              BIGINT, // signed eight-byte integer
+	"bigserial":           BIGSERIAL,
 	"binary":              UNUSED,
+	"bit":                 BIT, // fixed length bit string
 	"blob":                UNUSED,
 	"both":                UNUSED,
+	"bool":                BOOLEAN, // alias for boolean
+	"boolean":             BOOLEAN, // logical Boolean (true/false)
 	"by":                  BY,
 	"call":                UNUSED,
 	"cascade":             UNUSED,
@@ -74,12 +78,13 @@ var keywords = map[string]int{
 	"cursor":              UNUSED,
 	"database":            UNUSED,
 	"databases":           UNUSED,
+	"date":                DATE, // calendar date (year, month, day)
 	"day_hour":            UNUSED,
 	"day_microsecond":     UNUSED,
 	"day_minute":          UNUSED,
 	"day_second":          UNUSED,
 	"dec":                 UNUSED,
-	"decimal":             UNUSED,
+	"decimal":             NUMERIC, // alias for decmial
 	"declare":             UNUSED,
 	"default":             DEFAULT,
 	"delayed":             UNUSED,
@@ -130,13 +135,13 @@ var keywords = map[string]int{
 	"inner":               INNER,
 	"insensitive":         UNUSED,
 	"insert":              INSERT,
-	"int":                 UNUSED,
+	"int":                 INTEGER, // alias for int
 	"int1":                UNUSED,
 	"int2":                UNUSED,
 	"int3":                UNUSED,
-	"int4":                UNUSED,
-	"int8":                UNUSED,
-	"integer":             UNUSED,
+	"int4":                INTEGER, // alias for int
+	"int8":                BIGINT,  // alias for bigint
+	"integer":             INTEGER, // signed four-byte integer
 	"interval":            INTERVAL,
 	"into":                INTO,
 	"io_after_gtids":      UNUSED,
@@ -179,7 +184,7 @@ var keywords = map[string]int{
 	"not":                 NOT,
 	"no_write_to_binlog":  UNUSED,
 	"null":                NULL,
-	"numeric":             UNUSED,
+	"numeric":             NUMERIC, // exact numeric of selectable precision
 	"on":                  ON,
 	"optimize":            UNUSED,
 	"optimizer_costs":     UNUSED,
@@ -216,6 +221,7 @@ var keywords = map[string]int{
 	"schemas":             UNUSED,
 	"second_microsecond":  UNUSED,
 	"select":              SELECT,
+	"serial8":             BIGSERIAL,
 	"sensitive":           UNUSED,
 	"separator":           UNUSED,
 	"set":                 SET,
@@ -237,7 +243,10 @@ var keywords = map[string]int{
 	"straight_join":       STRAIGHT_JOIN,
 	"table":               TABLE,
 	"terminated":          UNUSED,
+	"text":                TEXT, // variable-length character string
 	"then":                THEN,
+	"time":                TIME, // time of day
+	"timetz":              TIME, // time of day, including time zone
 	"tinyblob":            UNUSED,
 	"tinyint":             UNUSED,
 	"tinytext":            UNUSED,
@@ -257,6 +266,7 @@ var keywords = map[string]int{
 	"utc_date":            UNUSED,
 	"utc_time":            UNUSED,
 	"utc_timestamp":       UNUSED,
+	"uuid":                UUID, // universally unique identifier
 	"values":              VALUES,
 	"varbinary":           UNUSED,
 	"varchar":             UNUSED,

@@ -549,10 +549,27 @@ func (node Nextval) WalkSubtree(visit Visit) error {
 	return nil
 }
 
+// DataType represents a known data type
+// Length is used in fields that take a defined length
+// WithTZ is only used in Data types that support a time zone
+type DataType struct {
+	Type   string
+	Length int
+	WithTZ bool
+}
+
+func (node *DataType) Format(buf *TrackedBuffer) {
+	buf.Myprintf("%s", node.Type)
+}
+
+func (node *DataType) WalkSubtree(visit Visit) error {
+	return nil
+}
+
 // ColConstr represents a column constraint in a create table statement
 type ColConstr struct {
 	Constraint string
-	params     string
+	Params     string
 }
 
 const (
@@ -597,7 +614,7 @@ func (node ColConstrs) WalkSubtree(visit Visit) error {
 // ColDef represents a column definition for a create table statement
 type ColDef struct {
 	ColName     *TableName
-	ColType     TableIdent
+	ColType     *DataType
 	Constraints ColConstrs
 }
 

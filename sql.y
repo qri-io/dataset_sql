@@ -68,6 +68,7 @@ func forceEOF(yylex interface{}) {
   colIdents   []ColIdent
   tableIdent  TableIdent
 
+  dataType    *DataType
   colDef      *ColDef
   colDefs     ColDefs
   colConstr   *ColConstr
@@ -114,6 +115,19 @@ func forceEOF(yylex interface{}) {
 
 // MySQL reserved words that are unused by this grammar will map to this token.
 %token <empty> UNUSED
+
+// Accepted Data types will map to these tokens
+%token <bytes> SMALLINT INTEGER BIGINT FLOAT DECIMAL NUMERIC REAL DOUBLE SMALLSERIAL SERIAL BIGSERIAL MONEY 
+%token <bytes> CHAR_VARYING CHAR TEXT 
+%token <bytes> BYTEA 
+%token <bytes> TIMESTAMP DATE TIME // INTERVAL
+%token <bytes> BOOLEAN
+%token <bytes> ENUM
+%token <bytes> POINT LINE LSEG BOX PATH POLYGON CIRCLE
+%token <bytes> CIDR INET MACADDR
+%token <bytes> BIT BIT_VARYING
+%token <bytes> UUID
+%token <bytes> XML JSON JSONB
 
 %type <statement> command
 %type <selStmt> select_statement
@@ -172,6 +186,7 @@ func forceEOF(yylex interface{}) {
 %type <colDefs> column_definition_list_opt column_definition_list
 %type <colConstr> column_constraint
 %type <colConstrs> column_constraint_list
+%type <dataType> data_type
 
 %start any_command
 
@@ -1027,7 +1042,85 @@ lock_opt:
     $$ = ShareModeStr
   }
 
-// yeah, I added this shit in. -@formalfiction
+data_type:
+  BIGINT
+  { $$ = &DataType{ Type: "bigint"} }
+| BIGSERIAL
+  { $$ = &DataType{ Type: "bigserial"} }
+| BIT
+  { $$ = &DataType{ Type: "bit"} }
+| BIT_VARYING
+  { $$ = &DataType{ Type: "bit_varying"} }
+| BOOLEAN
+  { $$ = &DataType{ Type: "boolean"} }
+| BOX
+  { $$ = &DataType{ Type: "box"} }
+| BYTEA
+  { $$ = &DataType{ Type: "bytea"} }
+| CHAR
+  { $$ = &DataType{ Type: "char"} }
+| CHAR_VARYING
+  { $$ = &DataType{ Type: "char_varying"} }
+| CIDR
+  { $$ = &DataType{ Type: "cidr"} }
+| CIRCLE
+  { $$ = &DataType{ Type: "circle"} }
+| DATE
+  { $$ = &DataType{ Type: "date"} }
+| DECIMAL
+  { $$ = &DataType{ Type: "decimal"} }
+| DOUBLE
+  { $$ = &DataType{ Type: "double"} }
+| ENUM
+  { $$ = &DataType{ Type: "enum"} }
+| FLOAT
+  { $$ = &DataType{ Type: "float"} }
+| INET
+  { $$ = &DataType{ Type: "inet"} }
+| INTEGER
+  { $$ = &DataType{ Type: "integer"} }
+//| INTERVAL
+//  { $$ = &DataType{ Type: "interval"} }
+| JSON
+  { $$ = &DataType{ Type: "json"} }
+| JSONB
+  { $$ = &DataType{ Type: "jsonb"} }
+| LINE
+  { $$ = &DataType{ Type: "line"} }
+| LSEG
+  { $$ = &DataType{ Type: "lseg"} }
+| MACADDR
+  { $$ = &DataType{ Type: "macaddr"} }
+| MONEY
+  { $$ = &DataType{ Type: "money"} }
+| NUMERIC
+  { $$ = &DataType{ Type: "numeric"} }
+| PATH
+  { $$ = &DataType{ Type: "path"} }
+| POINT
+  { $$ = &DataType{ Type: "point"} }
+| POLYGON
+  { $$ = &DataType{ Type: "polygon"} }
+| REAL
+  { $$ = &DataType{ Type: "real"} }
+| SERIAL
+  { $$ = &DataType{ Type: "serial"} }
+| SMALLINT
+  { $$ = &DataType{ Type: "smallint"} }
+| SMALLSERIAL
+  { $$ = &DataType{ Type: "smallserial"} }
+| TEXT
+  { $$ = &DataType{ Type: "text"} }
+| TIME
+  { $$ = &DataType{ Type: "time"} }
+| TIMESTAMP
+  { $$ = &DataType{ Type: "timestamp"} }
+| UUID
+  { $$ = &DataType{ Type: "uuid"} }
+| XML
+  { $$ = &DataType{ Type: "xml"} }
+
+
 column_constraint:
   NOT NULL
   {
@@ -1058,11 +1151,11 @@ column_constraint_list:
 
 
 column_definition:
-  table_name table_id 
+  table_name data_type 
   {
     $$ = &ColDef{ColName: $1, ColType: $2 }
   }
-| table_name table_id column_constraint_list
+| table_name data_type column_constraint_list
   {
     $$ = &ColDef{ColName: $1, ColType: $2, Constraints: $3 }
   }
@@ -1104,7 +1197,8 @@ column_list:
   {
     $$ = append($$, $3)
   }
-// </ShitAdded>
+
+
 
 on_dup_opt:
   {
