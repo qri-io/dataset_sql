@@ -495,6 +495,8 @@ func TestValid(t *testing.T) {
 	}, {
 		input: "create table nonpublicschema.a",
 	}, {
+		input: "create table index_2012 (id uuid primary key, created integer, updated integer, six_digit_code integer, description text)",
+	}, {
 		input:  "create table if not exists a",
 		output: "create table a",
 	}, {

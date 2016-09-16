@@ -632,7 +632,7 @@ var yyR2 = [...]int{
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 2, 1, 2, 1, 2,
-	2, 3, 1, 3, 0, 3, 0, 3, 1, 3,
+	3, 2, 1, 3, 0, 3, 0, 3, 1, 3,
 	0, 5, 2, 1, 1, 3, 3, 1, 1, 3,
 	3, 1, 1, 0, 2, 0, 3, 0, 1, 1,
 	1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
@@ -720,7 +720,7 @@ var yyDef = [...]int{
 	0, 104, 106, 0, 110, 134, 135, 136, 137, 138,
 	139, 140, 141, 142, 143, 97, 128, 0, 246, 147,
 	0, 159, 156, 0, 240, 0, 243, 240, 0, 238,
-	182, 84, 19, 0, 0, 0, 235, 230, 188, 189,
+	182, 84, 19, 0, 0, 0, 235, 231, 188, 189,
 	190, 191, 192, 193, 194, 195, 196, 197, 198, 199,
 	200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
 	210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
@@ -729,7 +729,7 @@ var yyDef = [...]int{
 	70, 0, 0, 68, 0, 0, 149, 0, 113, 115,
 	117, 0, 103, 105, 107, 0, 0, 130, 151, 0,
 	157, 0, 0, 16, 0, 242, 244, 17, 237, 0,
-	18, 183, 175, 176, 179, 233, 231, 228, 0, 226,
+	18, 183, 175, 176, 179, 233, 230, 228, 0, 226,
 	0, 22, 172, 0, 57, 63, 0, 66, 73, 74,
 	76, 0, 78, 0, 80, 81, 60, 0, 0, 0,
 	71, 61, 62, 163, 150, 125, 0, 108, 153, 160,
@@ -2444,7 +2444,7 @@ yydefault:
 		}
 	case 227:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line sql.y:1150
+		//line sql.y:1146
 		{
 			yyVAL.colConstr = &ColConstr{Constraint: ColConstrPrimaryKeyStr}
 		}
@@ -2461,16 +2461,16 @@ yydefault:
 			yyVAL.colConstrs = append(yyVAL.colConstrs, yyDollar[2].colConstr)
 		}
 	case 230:
-		yyDollar = yyS[yypt-2 : yypt+1]
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line sql.y:1167
 		{
-			yyVAL.colDef = &ColDef{ColName: yyDollar[1].tableName, ColType: yyDollar[2].dataType}
+			yyVAL.colDef = &ColDef{ColName: yyDollar[1].tableName, ColType: yyDollar[2].dataType, Constraints: yyDollar[3].colConstrs}
 		}
 	case 231:
-		yyDollar = yyS[yypt-3 : yypt+1]
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line sql.y:1171
 		{
-			yyVAL.colDef = &ColDef{ColName: yyDollar[1].tableName, ColType: yyDollar[2].dataType, Constraints: yyDollar[3].colConstrs}
+			yyVAL.colDef = &ColDef{ColName: yyDollar[1].tableName, ColType: yyDollar[2].dataType}
 		}
 	case 232:
 		yyDollar = yyS[yypt-1 : yypt+1]

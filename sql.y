@@ -1142,14 +1142,14 @@ column_constraint:
   {
     $$ = &ColConstr{ Constraint: ColConstrNullStr }
   }
-// | DEFAULT sql_id
-//   {
-//     $$ = &ColConstr{ Constraint: ColConstrDefaultStr, params : string($2) }
-//   }
 | PRIMARY KEY
   {
     $$ = &ColConstr{ Constraint: ColConstrPrimaryKeyStr }
   }
+// | DEFAULT sql_id
+//   {
+//     $$ = &ColConstr{ Constraint: ColConstrDefaultStr, params : string($2) }
+//   }
 
 column_constraint_list:
   column_constraint
@@ -1163,13 +1163,13 @@ column_constraint_list:
 
 
 column_definition:
-  table_name data_type 
-  {
-    $$ = &ColDef{ColName: $1, ColType: $2 }
-  }
-| table_name data_type column_constraint_list
+  table_name data_type column_constraint_list 
   {
     $$ = &ColDef{ColName: $1, ColType: $2, Constraints: $3 }
+  }
+| table_name data_type
+  {
+    $$ = &ColDef{ColName: $1, ColType: $2 }
   }
 
 column_definition_list:

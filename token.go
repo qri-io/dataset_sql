@@ -197,7 +197,7 @@ var keywords = map[string]int{
 	"outfile":             UNUSED,
 	"partition":           UNUSED,
 	"precision":           UNUSED,
-	"primary":             UNUSED,
+	"primary":             PRIMARY,
 	"procedure":           UNUSED,
 	"range":               UNUSED,
 	"read":                UNUSED,
