@@ -1202,6 +1202,7 @@ func (StrVal) iValExpr()        {}
 func (NumVal) iValExpr()        {}
 func (ValArg) iValExpr()        {}
 func (*NullVal) iValExpr()      {}
+func (BoolVal) iValExpr()       {}
 func (*ColName) iValExpr()      {}
 func (ValTuple) iValExpr()      {}
 func (*Subquery) iValExpr()     {}

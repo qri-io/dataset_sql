@@ -409,6 +409,8 @@ func TestValid(t *testing.T) {
 	}, {
 		input: "insert /* on duplicate */ into a values (1, 2) on duplicate key update b = func(a), c = d",
 	}, {
+		input: "insert into a values (123456, 'a', false)",
+	}, {
 		input: "update /* simple */ a set b = 3",
 	}, {
 		input: "update /* a.b */ a.b set b = 3",

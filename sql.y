@@ -951,6 +951,14 @@ value:
   {
     $$ = &NullVal{}
   }
+| TRUE
+  {
+    $$ = BoolVal(true)
+  }
+| FALSE
+  {
+    $$ = BoolVal(false)
+  }
 
 group_by_opt:
   {
