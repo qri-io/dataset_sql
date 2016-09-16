@@ -376,8 +376,8 @@ func (node *Set) WalkSubtree(visit Visit) error {
 // ColDefs is set for CreateStr
 type DDL struct {
 	Action   string
-	Table    TableIdent
-	NewName  TableIdent
+	Table    *TableName
+	NewName  *TableName
 	ColDefs  ColDefs
 	IfExists bool
 }

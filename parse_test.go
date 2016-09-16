@@ -493,6 +493,8 @@ func TestValid(t *testing.T) {
 	}, {
 		input: "create table `by`",
 	}, {
+		input: "create table nonpublicschema.a",
+	}, {
 		input:  "create table if not exists a",
 		output: "create table a",
 	}, {
