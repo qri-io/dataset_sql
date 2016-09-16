@@ -614,7 +614,7 @@ func (node ColConstrs) WalkSubtree(visit Visit) error {
 
 // ColDef represents a column definition for a create table statement
 type ColDef struct {
-	ColName     *TableName
+	ColName     ColIdent
 	ColType     *DataType
 	Constraints ColConstrs
 }

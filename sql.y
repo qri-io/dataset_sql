@@ -1163,11 +1163,11 @@ column_constraint_list:
 
 
 column_definition:
-  table_name data_type column_constraint_list 
+  sql_id data_type column_constraint_list 
   {
     $$ = &ColDef{ColName: $1, ColType: $2, Constraints: $3 }
   }
-| table_name data_type
+| sql_id data_type
   {
     $$ = &ColDef{ColName: $1, ColType: $2 }
   }
