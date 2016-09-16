@@ -421,6 +421,7 @@ func (node *DDL) WalkSubtree(visit Visit) error {
 		visit,
 		node.Table,
 		node.NewName,
+		node.ColDefs,
 	)
 }
 
@@ -768,7 +769,7 @@ func (*Subquery) iSimpleTableExpr()  {}
 // rules about which database to send a query to.
 // User is added to deal with Qri requests
 type TableName struct {
-	User, Name, Qualifier TableIdent
+	User, Qualifier, Name TableIdent
 }
 
 // Format formats the node.
