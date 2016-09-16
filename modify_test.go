@@ -1,9 +1,6 @@
 package sqlparser
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestPushColDefs(t *testing.T) {
 	stmt, err := Parse("CREATE TABLE a (noize text NOT NULL)")
@@ -22,9 +19,29 @@ func TestPushColDefs(t *testing.T) {
 		); err != nil {
 			t.Errorf("PushColumnDefs error: %s", err)
 		}
+	}
+}
+
+func TestAddStdColumns(t *testing.T) {
+	expect := "create table a (id uuid primary key, created integer, updated integer, noize text not null)"
+	stmt, err := Parse("CREATE TABLE a (noize text NOT NULL)")
+	if err != nil {
+		t.Errorf("Parse error: %s", err)
+	}
+
+	ddlStmt, ok := stmt.(*DDL)
+	if !ok {
+		t.Error("statement didn't parse into a DDL")
+	} else {
+		if err := ddlStmt.AddStdColumns(); err != nil {
+			t.Errorf("PushColumnDefs error: %s", err)
+		}
 
 		buf := NewTrackedBuffer(nil)
 		ddlStmt.Format(buf)
-		fmt.Println(buf.String())
+
+		if buf.String() != expect {
+			t.Errorf("expected: '%s', got: '%s'", expect, buf.String())
+		}
 	}
 }
