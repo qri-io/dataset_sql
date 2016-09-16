@@ -573,6 +573,10 @@ table_name:
   {
     $$ = &TableName{Qualifier: $1, Name: $3}
   }
+| table_id '.' table_id '.' table_id
+  {
+    $$ = &TableName{User: $1, Qualifier: $3, Name: $5 }
+  }
 
 index_hint_list:
   {

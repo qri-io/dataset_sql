@@ -766,8 +766,9 @@ func (*Subquery) iSimpleTableExpr()  {}
 // Qualifier, if specified, represents a database.
 // It's generally not supported because vitess has its own
 // rules about which database to send a query to.
+// User is added to deal with Qri requests
 type TableName struct {
-	Name, Qualifier TableIdent
+	User, Name, Qualifier TableIdent
 }
 
 // Format formats the node.
@@ -776,7 +777,9 @@ func (node *TableName) Format(buf *TrackedBuffer) {
 	if node == nil {
 		return
 	}
-	if node.Qualifier != "" {
+	if node.User != "" && node.Qualifier != "" {
+		buf.Myprintf("%v.%v.", node.User, node.Qualifier)
+	} else if node.Qualifier != "" {
 		buf.Myprintf("%v.", node.Qualifier)
 	}
 	buf.Myprintf("%v", node.Name)
