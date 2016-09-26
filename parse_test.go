@@ -13,6 +13,8 @@ func TestValid(t *testing.T) {
 	}{{
 		input: "select 1 from a.b.c",
 	}, {
+		input: "select category, title from b5.jobs.titles, b5.jobs.categories where b5.jobs.titles.category_id = b5.jobs.categories.category_id",
+	}, {
 		input: "select 1 from t",
 	}, {
 		input: "select .1 from t",

@@ -937,6 +937,10 @@ column_name:
   {
     $$ = &ColName{Qualifier: &TableName{Qualifier: $1, Name: $3}, Name: $5}
   }
+| table_id '.' table_id '.' table_id '.' sql_id
+  {
+    $$ = &ColName{Qualifier: &TableName{User: $1, Qualifier: $3, Name: $5}, Name: $7}
+  }
 
 value:
   STRING
