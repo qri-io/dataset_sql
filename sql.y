@@ -60,7 +60,7 @@ func forceEOF(yylex interface{}) {
   when        *When
   orderBy     OrderBy
   order       *Order
-  limit       *Limit
+  limitOffset *LimitOffset
   insRows     InsertRows
   updateExprs UpdateExprs
   updateExpr  *UpdateExpr
@@ -78,6 +78,7 @@ func forceEOF(yylex interface{}) {
 %token LEX_ERROR
 %left <empty> UNION
 %token <empty> SELECT INSERT UPDATE DELETE FROM WHERE GROUP HAVING ORDER BY LIMIT FOR
+%token <empty> OFFSET
 %token <empty> ALL DISTINCT AS EXISTS ASC DESC INTO DUPLICATE KEY DEFAULT SET LOCK
 %token <empty> VALUES LAST_INSERT_ID
 %token <empty> NEXT VALUE
@@ -167,7 +168,7 @@ func forceEOF(yylex interface{}) {
 %type <orderBy> order_by_opt order_list
 %type <order> order
 %type <str> asc_desc_opt
-%type <limit> limit_opt
+%type <limitOffset> limitOffset_opt
 %type <str> lock_opt
 %type <columns> column_list_opt column_list
 %type <updateExprs> on_dup_opt
@@ -215,9 +216,9 @@ command:
 | other_statement
 
 select_statement:
-  SELECT comment_opt distinct_opt straight_join_opt select_expression_list FROM table_references where_expression_opt group_by_opt having_opt order_by_opt limit_opt lock_opt
+  SELECT comment_opt distinct_opt straight_join_opt select_expression_list FROM table_references where_expression_opt group_by_opt having_opt order_by_opt limitOffset_opt lock_opt
   {
-    $$ = &Select{Comments: Comments($2), Distinct: $3, Hints: $4, SelectExprs: $5, From: $7, Where: NewWhere(WhereStr, $8), GroupBy: GroupBy($9), Having: NewWhere(HavingStr, $10), OrderBy: $11, Limit: $12, Lock: $13}
+    $$ = &Select{Comments: Comments($2), Distinct: $3, Hints: $4, SelectExprs: $5, From: $7, Where: NewWhere(WhereStr, $8), GroupBy: GroupBy($9), Having: NewWhere(HavingStr, $10), OrderBy: $11, LimitOffset: $12, Lock: $13}
   }
 | SELECT comment_opt NEXT sql_id for_from table_name
   {
@@ -249,15 +250,15 @@ insert_statement:
   }
 
 update_statement:
-  UPDATE comment_opt table_name SET update_list where_expression_opt order_by_opt limit_opt
+  UPDATE comment_opt table_name SET update_list where_expression_opt order_by_opt limitOffset_opt
   {
-    $$ = &Update{Comments: Comments($2), Table: $3, Exprs: $5, Where: NewWhere(WhereStr, $6), OrderBy: $7, Limit: $8}
+    $$ = &Update{Comments: Comments($2), Table: $3, Exprs: $5, Where: NewWhere(WhereStr, $6), OrderBy: $7, LimitOffset: $8}
   }
 
 delete_statement:
-  DELETE comment_opt FROM table_name where_expression_opt order_by_opt limit_opt
+  DELETE comment_opt FROM table_name where_expression_opt order_by_opt limitOffset_opt
   {
-    $$ = &Delete{Comments: Comments($2), Table: $4, Where: NewWhere(WhereStr, $5), OrderBy: $6, Limit: $7}
+    $$ = &Delete{Comments: Comments($2), Table: $4, Where: NewWhere(WhereStr, $5), OrderBy: $6, LimitOffset: $7}
   }
 
 set_statement:
@@ -1024,17 +1025,21 @@ asc_desc_opt:
     $$ = DescScr
   }
 
-limit_opt:
+limitOffset_opt:
   {
     $$ = nil
   }
 | LIMIT value_expression
   {
-    $$ = &Limit{Rowcount: $2}
+    $$ = &LimitOffset{Rowcount: $2}
   }
 | LIMIT value_expression ',' value_expression
   {
-    $$ = &Limit{Offset: $2, Rowcount: $4}
+    $$ = &LimitOffset{Offset: $2, Rowcount: $4}
+  }
+| LIMIT value_expression OFFSET value_expression
+  {
+    $$ = &LimitOffset{ Rowcount: $2, Offset: $4 }
   }
 
 lock_opt:

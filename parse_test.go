@@ -15,6 +15,8 @@ func TestValid(t *testing.T) {
 	}, {
 		input: "select category, title from b5.jobs.titles, b5.jobs.categories where b5.jobs.titles.category_id = b5.jobs.categories.category_id",
 	}, {
+		input: "select * from a limit 5 offset 1200",
+	}, {
 		input: "select 1 from t",
 	}, {
 		input: "select .1 from t",
@@ -375,7 +377,7 @@ func TestValid(t *testing.T) {
 	}, {
 		input: "select /* limit a */ 1 from t limit a",
 	}, {
-		input: "select /* limit a,b */ 1 from t limit a, b",
+		input: "select /* limit a,b */ 1 from t limit a offset b",
 	}, {
 		input:  "select /* binary unary */ a- -b from t",
 		output: "select /* binary unary */ a - -b from t",

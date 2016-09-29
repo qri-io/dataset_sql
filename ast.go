@@ -122,7 +122,7 @@ type Select struct {
 	GroupBy     GroupBy
 	Having      *Where
 	OrderBy     OrderBy
-	Limit       *Limit
+	LimitOffset *LimitOffset
 	Lock        string
 }
 
@@ -144,7 +144,7 @@ func (node *Select) Format(buf *TrackedBuffer) {
 		node.Comments, node.Distinct, node.Hints, node.SelectExprs,
 		node.From, node.Where,
 		node.GroupBy, node.Having, node.OrderBy,
-		node.Limit, node.Lock)
+		node.LimitOffset, node.Lock)
 }
 
 // WalkSubtree walks the nodes of the subtree
@@ -161,7 +161,7 @@ func (node *Select) WalkSubtree(visit Visit) error {
 		node.GroupBy,
 		node.Having,
 		node.OrderBy,
-		node.Limit,
+		node.LimitOffset,
 	)
 }
 
@@ -285,19 +285,19 @@ func (Values) iInsertRows()  {}
 
 // Update represents an UPDATE statement.
 type Update struct {
-	Comments Comments
-	Table    *TableName
-	Exprs    UpdateExprs
-	Where    *Where
-	OrderBy  OrderBy
-	Limit    *Limit
+	Comments    Comments
+	Table       *TableName
+	Exprs       UpdateExprs
+	Where       *Where
+	OrderBy     OrderBy
+	LimitOffset *LimitOffset
 }
 
 // Format formats the node.
 func (node *Update) Format(buf *TrackedBuffer) {
 	buf.Myprintf("update %v%v set %v%v%v%v",
 		node.Comments, node.Table,
-		node.Exprs, node.Where, node.OrderBy, node.Limit)
+		node.Exprs, node.Where, node.OrderBy, node.LimitOffset)
 }
 
 // WalkSubtree walks the nodes of the subtree
@@ -312,24 +312,24 @@ func (node *Update) WalkSubtree(visit Visit) error {
 		node.Exprs,
 		node.Where,
 		node.OrderBy,
-		node.Limit,
+		node.LimitOffset,
 	)
 }
 
 // Delete represents a DELETE statement.
 type Delete struct {
-	Comments Comments
-	Table    *TableName
-	Where    *Where
-	OrderBy  OrderBy
-	Limit    *Limit
+	Comments    Comments
+	Table       *TableName
+	Where       *Where
+	OrderBy     OrderBy
+	LimitOffset *LimitOffset
 }
 
 // Format formats the node.
 func (node *Delete) Format(buf *TrackedBuffer) {
 	buf.Myprintf("delete %vfrom %v%v%v%v",
 		node.Comments,
-		node.Table, node.Where, node.OrderBy, node.Limit)
+		node.Table, node.Where, node.OrderBy, node.LimitOffset)
 }
 
 // WalkSubtree walks the nodes of the subtree
@@ -343,7 +343,7 @@ func (node *Delete) WalkSubtree(visit Visit) error {
 		node.Table,
 		node.Where,
 		node.OrderBy,
-		node.Limit,
+		node.LimitOffset,
 	)
 }
 
@@ -1683,25 +1683,25 @@ func (node *Order) WalkSubtree(visit Visit) error {
 	)
 }
 
-// Limit represents a LIMIT clause.
-type Limit struct {
+// LimitOffset represents a LIMIT clause.
+type LimitOffset struct {
 	Offset, Rowcount ValExpr
 }
 
 // Format formats the node.
-func (node *Limit) Format(buf *TrackedBuffer) {
+func (node *LimitOffset) Format(buf *TrackedBuffer) {
 	if node == nil {
 		return
 	}
-	buf.Myprintf(" limit ")
+	buf.Myprintf(" limit %v", node.Rowcount)
 	if node.Offset != nil {
-		buf.Myprintf("%v, ", node.Offset)
+		buf.Myprintf(" offset %v", node.Offset)
 	}
-	buf.Myprintf("%v", node.Rowcount)
+	// buf.Myprintf("%v", node.Rowcount)
 }
 
 // WalkSubtree walks the nodes of the subtree
-func (node *Limit) WalkSubtree(visit Visit) error {
+func (node *LimitOffset) WalkSubtree(visit Visit) error {
 	if node == nil {
 		return nil
 	}
