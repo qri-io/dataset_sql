@@ -6,6 +6,7 @@ package sqlparser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/qri-io/sqlparser/deps/cistring"
@@ -517,6 +518,36 @@ type NonStarExpr struct {
 	As   ColIdent
 }
 
+// Field returns a name & datatype for the select expr
+func (node *NonStarExpr) FieldName() (name string) {
+	if node.As.String() != "" {
+		name = node.As.String()
+		return
+	}
+
+	if col, ok := node.Expr.(*ColName); ok {
+		col.Name.String()
+	}
+
+	return
+}
+
+// FieldType returns a string representation of the type of field
+// where datatype is one of: "", "string", "integer", "float", "boolean", "date"
+func (node *NonStarExpr) FieldType() (datatype string) {
+	if _, ok := node.Expr.(BoolExpr); ok {
+		return "boolean"
+	} else if _, ok := node.Expr.(StrVal); ok {
+		return "string"
+	} else if _, ok := node.Expr.(NumVal); ok {
+		// TODO - for now we're assuming floats, should do a proper check
+		return "float"
+	} else if _, ok := node.Expr.(*ColName); ok {
+		return ""
+	}
+	return
+}
+
 // Format formats the node.
 func (node *NonStarExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("%v", node.Expr)
@@ -691,6 +722,14 @@ func (node Columns) WalkSubtree(visit Visit) error {
 // TableExprs represents a list of table expressions.
 type TableExprs []TableExpr
 
+func (node TableExprs) TableNames() (names []string) {
+	for _, tableExpr := range node {
+		names = append(names, tableExpr.TableNames()...)
+	}
+
+	return
+}
+
 // Format formats the node.
 func (node TableExprs) Format(buf *TrackedBuffer) {
 	var prefix string
@@ -713,6 +752,7 @@ func (node TableExprs) WalkSubtree(visit Visit) error {
 // TableExpr represents a table expression.
 type TableExpr interface {
 	iTableExpr()
+	TableNames() []string
 	SQLNode
 }
 
@@ -727,6 +767,10 @@ type AliasedTableExpr struct {
 	Expr  SimpleTableExpr
 	As    TableIdent
 	Hints *IndexHints
+}
+
+func (node *AliasedTableExpr) TableNames() []string {
+	return []string{node.Expr.TableName()}
 }
 
 // Format formats the node.
@@ -757,6 +801,7 @@ func (node *AliasedTableExpr) WalkSubtree(visit Visit) error {
 // SimpleTableExpr represents a simple table expression.
 type SimpleTableExpr interface {
 	iSimpleTableExpr()
+	TableName() string
 	SQLNode
 }
 
@@ -770,6 +815,15 @@ func (*Subquery) iSimpleTableExpr()  {}
 // User is added to deal with Qri requests
 type TableName struct {
 	User, Qualifier, Name TableIdent
+}
+
+func (node *TableName) TableName() string {
+	if node.User != "" && node.Qualifier != "" {
+		return fmt.Sprintf("%v.%v.", node.User, node.Qualifier)
+	} else if node.Qualifier != "" {
+		return fmt.Sprintf("%v.", node.Qualifier)
+	}
+	return fmt.Sprintf("%v", node.Name)
 }
 
 // Format formats the node.
@@ -808,6 +862,16 @@ type ParenTableExpr struct {
 	Exprs TableExprs
 }
 
+func (node *ParenTableExpr) TableNames() (names []string) {
+	node.WalkSubtree(func(node SQLNode) (kontinue bool, err error) {
+		if tbl, ok := node.(TableExpr); ok && node != nil {
+			names = append(names, tbl.TableNames()...)
+		}
+		return
+	})
+	return
+}
+
 // Format formats the node.
 func (node *ParenTableExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("(%v)", node.Exprs)
@@ -830,6 +894,10 @@ type JoinTableExpr struct {
 	Join      string
 	RightExpr TableExpr
 	On        BoolExpr
+}
+
+func (node *JoinTableExpr) TableNames() (names []string) {
+	return append(node.LeftExpr.TableNames(), node.RightExpr.TableNames()...)
 }
 
 // JoinTableExpr.Join
@@ -1368,6 +1436,11 @@ func (node ValExprs) WalkSubtree(visit Visit) error {
 // Subquery represents a subquery.
 type Subquery struct {
 	Select SelectStatement
+}
+
+func (node *Subquery) TableName() string {
+	// TODO - um, wut?
+	return ""
 }
 
 // Format formats the node.
