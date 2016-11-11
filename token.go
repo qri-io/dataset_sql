@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqlparser
+package dataset_sql
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 
-	sqltypes "github.com/qri-io/sqlparser/deps/sqltypes"
+	sqltypes "github.com/qri-io/dataset_sql/deps/sqltypes"
 )
 
 const eofChar = 0x100

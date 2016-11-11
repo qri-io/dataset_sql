@@ -1,5 +1,5 @@
 //line sql.y:6
-package sqlparser
+package dataset_sql
 
 import __yyfmt__ "fmt"
 

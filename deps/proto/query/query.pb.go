@@ -49,8 +49,8 @@ package query
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import topodata "github.com/qri-io/sqlparser/deps/proto/topodata"
-import vtrpc "github.com/qri-io/sqlparser/deps/proto/vtrpc"
+import topodata "github.com/qri-io/dataset_sql/deps/proto/topodata"
+import vtrpc "github.com/qri-io/dataset_sql/deps/proto/vtrpc"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal

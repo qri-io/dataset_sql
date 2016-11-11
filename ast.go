@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqlparser
+package dataset_sql
 
 import (
 	"errors"
@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/qri-io/dataset"
+	"github.com/qri-io/dataset_sql/deps/cistring"
+	"github.com/qri-io/dataset_sql/deps/sqltypes"
 	"github.com/qri-io/datatype"
-	"github.com/qri-io/sqlparser/deps/cistring"
-	"github.com/qri-io/sqlparser/deps/sqltypes"
 )
 
 var ErrNotYetImplemented = fmt.Errorf("Not Yet Implemented")

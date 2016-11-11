@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 %{
-package sqlparser
+package dataset_sql
 
 func setParseTree(yylex interface{}, stmt Statement) {
   yylex.(*Tokenizer).ParseTree = stmt

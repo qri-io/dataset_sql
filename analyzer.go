@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqlparser
+package dataset_sql
 
 // analyzer.go contains utility analysis functions.
 
 import (
 	"fmt"
 
-	"github.com/qri-io/sqlparser/deps/sqltypes"
+	"github.com/qri-io/dataset_sql/deps/sqltypes"
 )
 
 // GetTableName returns the table name from the SimpleTableExpr

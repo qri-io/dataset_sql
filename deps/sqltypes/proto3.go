@@ -4,7 +4,7 @@
 
 package sqltypes
 
-import querypb "github.com/qri-io/sqlparser/deps/proto/query"
+import querypb "github.com/qri-io/dataset_sql/deps/proto/query"
 
 // This file contains the proto3 conversion functions for the structures
 // defined here.

@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/qri-io/sqlparser/deps/hack"
-	querypb "github.com/qri-io/sqlparser/deps/proto/query"
+	"github.com/qri-io/dataset_sql/deps/hack"
+	querypb "github.com/qri-io/dataset_sql/deps/proto/query"
 )
 
 var (

@@ -7,7 +7,7 @@ package sqltypes
 import (
 	"fmt"
 
-	querypb "github.com/qri-io/sqlparser/deps/proto/query"
+	querypb "github.com/qri-io/dataset_sql/deps/proto/query"
 )
 
 // This file provides wrappers and support

@@ -1,4 +1,4 @@
-package sqlparser
+package dataset_sql
 
 import (
 	"fmt"

@@ -4,7 +4,7 @@
 
 package sqltypes
 
-import querypb "github.com/qri-io/sqlparser/deps/proto/query"
+import querypb "github.com/qri-io/dataset_sql/deps/proto/query"
 
 // Result represents a query result.
 type Result struct {
