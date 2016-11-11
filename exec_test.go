@@ -88,6 +88,8 @@ func TestSelectFields(t *testing.T) {
 			continue
 		}
 
+		// fmt.Println(records)
+
 		if len(records) != c.numRows {
 			t.Errorf("case %d result count mismatch. expected: %d, got: %d", i, c.numRows, len(records))
 			continue

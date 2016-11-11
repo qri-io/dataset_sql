@@ -519,7 +519,7 @@ func (node SelectExprs) WalkSubtree(visit Visit) error {
 // SelectExpr represents a SELECT expression.
 type SelectExpr interface {
 	iSelectExpr()
-	Map(src, dst *dataset.Dataset, srcRow, dstRow [][]byte) error
+	Map(col int, src, dst *dataset.Dataset, srcRow, dstRow [][]byte) (colsWritten int, err error)
 	SQLNode
 }
 
@@ -532,17 +532,17 @@ type StarExpr struct {
 	TableName TableIdent
 }
 
-func (node *StarExpr) Map(src, dst *dataset.Dataset, srcRow, dstRow [][]byte) error {
+func (node *StarExpr) Map(col int, src, dst *dataset.Dataset, srcRow, dstRow [][]byte) (colsWritten int, err error) {
 	// if node.TableName != nil {
 	// Todo - Table names should be scoped
 	// d.DatasetForAddress()
 	// } else {
-	for i, col := range srcRow {
-		dstRow[i] = col
+	for i, srcCol := range srcRow {
+		dstRow[col+i] = srcCol
 	}
 	// }
 
-	return nil
+	return len(srcRow), nil
 }
 
 // Format formats the node.
@@ -570,19 +570,17 @@ type NonStarExpr struct {
 	As   ColIdent
 }
 
-func (node *NonStarExpr) Map(src, dst *dataset.Dataset, srcRow, dstRow [][]byte) error {
-	// if node.TableName != nil {
-	// Todo - Table names should be scoped
-	// d.DatasetForAddress()
-	// } else {
-	// for i, col := range srcRow {
-	// 	dstRow[i] = col
-	// }
-	// }
+func (node *NonStarExpr) Map(col int, src, dst *dataset.Dataset, srcRow, dstRow [][]byte) (int, error) {
+	expr, err := node.Expr.Eval(src, srcRow)
+	if err != nil {
+		return 0, err
+	}
 
-	// TODO
-
-	return nil
+	if val, ok := expr.(ValExpr); ok {
+		dstRow[col] = val.Bytes()
+		return 1, nil
+	}
+	return 0, fmt.Errorf("invalid selector for column: %d", col)
 }
 
 // Field returns a name & datatype for the select expr
@@ -615,15 +613,11 @@ func (node *NonStarExpr) FieldType(result *dataset.Dataset) datatype.Type {
 		}
 		return datatype.Unknown
 	case BoolExpr:
-		fmt.Println("bool")
 		return datatype.Boolean
 	case StrVal:
-		fmt.Println("string")
 		return datatype.String
 	case NumVal:
-		fmt.Println("float")
 		return datatype.Float
-
 	}
 
 	return datatype.Unknown
@@ -652,9 +646,9 @@ func (node *NonStarExpr) WalkSubtree(visit Visit) error {
 // Nextval defines the NEXT VALUE expression.
 type Nextval struct{}
 
-func (node Nextval) Map(srcDataset, dstDataset *dataset.Dataset, srcRow, dstRow [][]byte) error {
+func (node Nextval) Map(col int, srcDataset, dstDataset *dataset.Dataset, srcRow, dstRow [][]byte) (colsWritten int, err error) {
 	// TODO?
-	return nil
+	return
 }
 
 // Format formats the node.
@@ -1461,6 +1455,7 @@ func (node *ExistsExpr) WalkSubtree(visit Visit) error {
 type ValExpr interface {
 	iValExpr()
 	compare(string, ValExpr) (BoolVal, error)
+	Bytes() []byte
 	Expr
 }
 
@@ -1487,6 +1482,10 @@ func (node StrVal) String() string {
 	return string(node)
 }
 
+func (node StrVal) Bytes() []byte {
+	return node
+}
+
 // Eval evaluates the node against a row of data
 func (node StrVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	return node, nil
@@ -1506,6 +1505,10 @@ func (node StrVal) WalkSubtree(visit Visit) error {
 // NumVal represents a number.
 type NumVal []byte
 
+func (node NumVal) Bytes() []byte {
+	return node
+}
+
 // Eval evaluates the node against a row of data
 func (node NumVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	return node, nil
@@ -1523,6 +1526,10 @@ func (node NumVal) WalkSubtree(visit Visit) error {
 
 // ValArg represents a named bind var argument.
 type ValArg []byte
+
+func (node ValArg) Bytes() []byte {
+	return node
+}
 
 // Eval evaluates the node against a row of data
 func (node ValArg) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
@@ -1543,6 +1550,10 @@ func (node ValArg) WalkSubtree(visit Visit) error {
 // NullVal represents a NULL value.
 type NullVal struct{}
 
+func (node *NullVal) Bytes() []byte {
+	return nil
+}
+
 // Eval evaluates the node against a row of data
 func (node *NullVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	return nil, nil
@@ -1560,6 +1571,13 @@ func (node *NullVal) WalkSubtree(visit Visit) error {
 
 // BoolVal is true or false.
 type BoolVal bool
+
+func (node BoolVal) Bytes() []byte {
+	if node {
+		return []byte("t")
+	}
+	return []byte("f")
+}
 
 // Eval evaluates the node against a row of data
 func (node BoolVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
@@ -1595,6 +1613,12 @@ type ColName struct {
 	Qualifier *TableName
 }
 
+func (node ColName) Bytes() []byte {
+	// should receive bytes by calling Eval,
+	// which will return a concrete value
+	return nil
+}
+
 // Eval evaluates the node against a row of data
 func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	for i, field := range ds.Fields {
@@ -1608,6 +1632,8 @@ func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 				return NumVal(row[i]), nil
 			case datatype.Integer:
 				return NumVal(row[i]), nil
+			case datatype.Date:
+				return StrVal(row[i]), nil
 			case datatype.Boolean:
 				val, err := datatype.ParseBoolean(row[i])
 				return BoolVal(val), err
@@ -1657,6 +1683,11 @@ func (ListArg) iColTuple()   {}
 // ValTuple represents a tuple of actual values.
 type ValTuple ValExprs
 
+func (node ValTuple) Bytes() []byte {
+	// TODO
+	return nil
+}
+
 func (node ValTuple) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	// TODO
 	return nil, ErrNotYetImplemented
@@ -1700,6 +1731,11 @@ type Subquery struct {
 	Select SelectStatement
 }
 
+func (node *Subquery) Bytes() []byte {
+	// TODO
+	return nil
+}
+
 func (node *Subquery) TableAddress() dataset.Address {
 	// TODO - um, wut?
 	return dataset.NewAddress("")
@@ -1728,6 +1764,10 @@ func (node *Subquery) WalkSubtree(visit Visit) error {
 
 // ListArg represents a named list argument.
 type ListArg []byte
+
+func (node ListArg) Bytes() []byte {
+	return node
+}
 
 func (node ListArg) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	// TODO?
@@ -1763,6 +1803,11 @@ const (
 	ShiftLeftStr  = "<<"
 	ShiftRightStr = ">>"
 )
+
+func (node *BinaryExpr) Bytes() []byte {
+	// TODO
+	return nil
+}
 
 func (node *BinaryExpr) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	// TODO
@@ -1833,6 +1878,11 @@ const (
 	TildaStr  = '~'
 )
 
+func (node *UnaryExpr) Bytes() []byte {
+	// TODO
+	return nil
+}
+
 func (node *UnaryExpr) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 	exp, err := node.Expr.Eval(ds, row)
 	if err != nil {
@@ -1875,6 +1925,11 @@ type IntervalExpr struct {
 	Unit ColIdent
 }
 
+func (node *IntervalExpr) Bytes() []byte {
+	// TODO
+	return nil
+}
+
 func (node *IntervalExpr) Eval(d *dataset.Dataset, row [][]byte) (Expr, error) {
 	exp, err := node.Expr.Eval(d, row)
 	if err != nil {
@@ -1906,6 +1961,11 @@ type FuncExpr struct {
 	Name     string
 	Distinct bool
 	Exprs    SelectExprs
+}
+
+func (node *FuncExpr) Bytes() []byte {
+	// TODO
+	return nil
 }
 
 func (node *FuncExpr) Eval(d *dataset.Dataset, row [][]byte) (Expr, error) {
@@ -1965,6 +2025,11 @@ type CaseExpr struct {
 	Expr  ValExpr
 	Whens []*When
 	Else  ValExpr
+}
+
+func (node *CaseExpr) Bytes() []byte {
+	// TODO
+	return nil
 }
 
 func (node *CaseExpr) Eval(d *dataset.Dataset, row [][]byte) (Expr, error) {

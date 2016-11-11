@@ -71,9 +71,12 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			}
 
 			dst := make([][]byte, len(result.Fields))
+			col := 0
 			for _, sExp := range stmt.SelectExprs {
-				if err = sExp.Map(ds, result, src, dst); err != nil {
-					return
+				if colsWritten, err := sExp.Map(col, ds, result, src, dst); err != nil {
+					return err
+				} else {
+					col += colsWritten
 				}
 			}
 
@@ -83,7 +86,6 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 				row[i] = string(col)
 			}
 
-			// fmt.Println(row)
 			w.Write(row)
 
 			return nil
