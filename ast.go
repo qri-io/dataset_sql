@@ -111,6 +111,7 @@ type SelectStatement interface {
 	iSelectStatement()
 	iStatement()
 	iInsertRows()
+	Exec(domain Domain) (*dataset.Dataset, error)
 	SQLNode
 }
 
@@ -518,7 +519,7 @@ func (node SelectExprs) WalkSubtree(visit Visit) error {
 // SelectExpr represents a SELECT expression.
 type SelectExpr interface {
 	iSelectExpr()
-	Map(src, dst []*dataset.Dataset, srcRow, dstRow [][]byte) error
+	Map(src, dst *dataset.Dataset, srcRow, dstRow [][]byte) error
 	SQLNode
 }
 
@@ -569,6 +570,21 @@ type NonStarExpr struct {
 	As   ColIdent
 }
 
+func (node *NonStarExpr) Map(src, dst *dataset.Dataset, srcRow, dstRow [][]byte) error {
+	// if node.TableName != nil {
+	// Todo - Table names should be scoped
+	// d.DatasetForAddress()
+	// } else {
+	// for i, col := range srcRow {
+	// 	dstRow[i] = col
+	// }
+	// }
+
+	// TODO
+
+	return nil
+}
+
 // Field returns a name & datatype for the select expr
 func (node *NonStarExpr) ResultName() (name string) {
 	if node.As.String() != "" {
@@ -577,7 +593,7 @@ func (node *NonStarExpr) ResultName() (name string) {
 	}
 
 	if col, ok := node.Expr.(*ColName); ok {
-		col.Name.String()
+		name = col.Name.String()
 	}
 
 	return
@@ -585,18 +601,32 @@ func (node *NonStarExpr) ResultName() (name string) {
 
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
-func (node *NonStarExpr) FieldType() (datatype string) {
-	if _, ok := node.Expr.(BoolExpr); ok {
-		return "boolean"
-	} else if _, ok := node.Expr.(StrVal); ok {
-		return "string"
-	} else if _, ok := node.Expr.(NumVal); ok {
-		// TODO - for now we're assuming floats, should do a proper check
-		return "float"
-	} else if _, ok := node.Expr.(*ColName); ok {
-		return ""
+func (node *NonStarExpr) FieldType(result *dataset.Dataset) datatype.Type {
+	switch node.Expr.(type) {
+	case *ColName:
+		colName := node.Expr.(*ColName)
+		for _, ds := range result.Datasets {
+			for _, f := range ds.Fields {
+				// fmt.Println(name.Name.String(), f.Name)
+				if colName.Name.String() == f.Name {
+					return f.Type
+				}
+			}
+		}
+		return datatype.Unknown
+	case BoolExpr:
+		fmt.Println("bool")
+		return datatype.Boolean
+	case StrVal:
+		fmt.Println("string")
+		return datatype.String
+	case NumVal:
+		fmt.Println("float")
+		return datatype.Float
+
 	}
-	return
+
+	return datatype.Unknown
 }
 
 // Format formats the node.
@@ -621,6 +651,11 @@ func (node *NonStarExpr) WalkSubtree(visit Visit) error {
 
 // Nextval defines the NEXT VALUE expression.
 type Nextval struct{}
+
+func (node Nextval) Map(srcDataset, dstDataset *dataset.Dataset, srcRow, dstRow [][]byte) error {
+	// TODO?
+	return nil
+}
 
 // Format formats the node.
 func (node Nextval) Format(buf *TrackedBuffer) {
@@ -820,7 +855,7 @@ type AliasedTableExpr struct {
 	Hints *IndexHints
 }
 
-func (node *AliasedTableExpr) TableAddress() []dataset.Address {
+func (node *AliasedTableExpr) TableAddresses() []dataset.Address {
 	return []dataset.Address{node.Expr.TableAddress()}
 }
 
@@ -870,9 +905,9 @@ type TableName struct {
 
 func (node *TableName) TableAddress() dataset.Address {
 	if node.User != "" && node.Qualifier != "" {
-		return dataset.NewAddress(node.User, node.Qualifier)
+		return dataset.NewAddress(node.User.String(), node.Qualifier.String())
 	} else if node.Qualifier != "" {
-		return dataset.NewAddress(node.Qualifier)
+		return dataset.NewAddress(node.Qualifier.String())
 	}
 	return dataset.NewAddress(node.Name.String())
 }
@@ -913,10 +948,10 @@ type ParenTableExpr struct {
 	Exprs TableExprs
 }
 
-func (node *ParenTableExpr) TableNames() (names []string) {
+func (node *ParenTableExpr) TableAddresses() (addrs []dataset.Address) {
 	node.WalkSubtree(func(node SQLNode) (kontinue bool, err error) {
 		if tbl, ok := node.(TableExpr); ok && node != nil {
-			names = append(names, tbl.TableNames()...)
+			addrs = append(addrs, tbl.TableAddresses()...)
 		}
 		return
 	})
@@ -1067,7 +1102,7 @@ func (node *Where) WalkSubtree(visit Visit) error {
 // Expr represents an expression.
 type Expr interface {
 	iExpr()
-	Eval(d *dataset.Dataset, row [][]byte) (Expr, error)
+	Eval(ds *dataset.Dataset, row [][]byte) (Expr, error)
 	SQLNode
 }
 
@@ -1122,14 +1157,14 @@ func (node *AndExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err erro
 
 func (node *AndExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	if left, err := node.Left.EvalBool(ds, row); err != nil {
-		return nil, err
+		return BoolVal(false), err
 	} else if !left {
 		return left, nil
 	}
 
 	if right, err := node.Right.EvalBool(ds, row); err != nil {
-		return nil, err
-	} else if !left {
+		return BoolVal(false), err
+	} else if !right {
 		return right, nil
 	}
 
@@ -1164,14 +1199,14 @@ func (node *OrExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err error
 
 func (node *OrExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	if left, err := node.Left.EvalBool(ds, row); err != nil {
-		return nil, err
+		return BoolVal(false), err
 	} else if left {
 		return left, nil
 	}
 
 	if right, err := node.Right.EvalBool(ds, row); err != nil {
-		return nil, err
-	} else if left {
+		return BoolVal(false), err
+	} else if right {
 		return right, nil
 	}
 
@@ -1205,9 +1240,9 @@ func (node *NotExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err erro
 }
 
 func (node *NotExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
-	expr, err := node.Left.EvalBool(ds, row)
+	expr, err := node.Expr.EvalBool(ds, row)
 	if err != nil {
-		return nil, err
+		return BoolVal(false), err
 	}
 	return !expr, nil
 }
@@ -1240,7 +1275,7 @@ func (node *ParenBoolExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, er
 func (node *ParenBoolExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	expr, err := node.Expr.EvalBool(ds, row)
 	if err != nil {
-		return nil, err
+		return BoolVal(false), err
 	}
 
 	return expr, nil
@@ -1330,7 +1365,7 @@ func (node *RangeCond) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err er
 
 func (node *RangeCond) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return nil, ErrNotYetImplemented
+	return BoolVal(false), ErrNotYetImplemented
 }
 
 // Format formats the node.
@@ -1373,7 +1408,7 @@ func (node *IsExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err error
 
 func (node *IsExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return nil, ErrNotYetImplemented
+	return BoolVal(false), ErrNotYetImplemented
 }
 
 // Format formats the node.
@@ -1403,7 +1438,7 @@ func (node *ExistsExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err e
 
 func (node *ExistsExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return nil, ErrNotYetImplemented
+	return BoolVal(false), ErrNotYetImplemented
 }
 
 // Format formats the node.
@@ -1446,6 +1481,11 @@ func (*CaseExpr) iValExpr()     {}
 
 // StrVal represents a string value.
 type StrVal []byte
+
+// String makes StrVal a Stringer
+func (node StrVal) String() string {
+	return string(node)
+}
 
 // Eval evaluates the node against a row of data
 func (node StrVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
@@ -1523,6 +1563,10 @@ type BoolVal bool
 
 // Eval evaluates the node against a row of data
 func (node BoolVal) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
+	return node.EvalBool(ds, row)
+}
+
+func (node BoolVal) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	return node, nil
 }
 
@@ -1553,8 +1597,8 @@ type ColName struct {
 
 // Eval evaluates the node against a row of data
 func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
-	for i, field := range fields {
-		if node.Name == field.Name {
+	for i, field := range ds.Fields {
+		if node.Name.String() == field.Name {
 			switch field.Type {
 			case datatype.Any:
 				return StrVal(row[i]), nil
@@ -1565,7 +1609,7 @@ func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 			case datatype.Integer:
 				return NumVal(row[i]), nil
 			case datatype.Boolean:
-				val, err := datatype.ParseBoolean(value)
+				val, err := datatype.ParseBoolean(row[i])
 				return BoolVal(val), err
 			case datatype.Object:
 				// TODO
@@ -1661,6 +1705,11 @@ func (node *Subquery) TableAddress() dataset.Address {
 	return dataset.NewAddress("")
 }
 
+func (node *Subquery) Eval(ds *dataset.Dataset, row [][]byte) (exp Expr, err error) {
+	// TODO
+	return nil, nil
+}
+
 // Format formats the node.
 func (node *Subquery) Format(buf *TrackedBuffer) {
 	buf.Myprintf("(%v)", node.Select)
@@ -1716,15 +1765,17 @@ const (
 )
 
 func (node *BinaryExpr) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
-	left, err := node.Left.Eval(d, row)
-	if err != nil {
-		return nil, err
-	}
+	// TODO
 
-	right, err := node.Right.Eval(d, row)
-	if err != nil {
-		return nil, err
-	}
+	// left, err := node.Left.Eval(ds, row)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// right, err := node.Right.Eval(ds, row)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// switch node.Operator {
 	// case BitAndStr:
@@ -1783,9 +1834,9 @@ const (
 )
 
 func (node *UnaryExpr) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
-	exp, err := node.Expr.Eval(d, row)
+	exp, err := node.Expr.Eval(ds, row)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO
@@ -1830,7 +1881,7 @@ func (node *IntervalExpr) Eval(d *dataset.Dataset, row [][]byte) (Expr, error) {
 		return nil, err
 	}
 	// TODO - wtf is an interval expression? lol
-	return
+	return exp, nil
 }
 
 // Format formats the node.
