@@ -3,6 +3,7 @@ package dataset_sql
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 
 	"github.com/qri-io/dataset"
@@ -55,6 +56,15 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 	w := csv.NewWriter(results)
 	result.Format = dataset.CsvDataFormat
 
+	limit := int64(0)
+	offset := int64(0)
+	added := int64(0)
+	skipped := int64(0)
+	if stmt.LimitOffset != nil {
+		limit = stmt.LimitOffset.GetRowCount()
+		offset = stmt.LimitOffset.GetOffset()
+	}
+
 	// 3. Populate dataset data by iterating through each dataset.dataset, projecting the source dataset onto the result dataset.
 	// 		Then evaluate if the projected row passes any where clauses
 	for _, ds := range result.Datasets {
@@ -63,10 +73,20 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 				return e
 			}
 
+			if limit > 0 && added == limit {
+				return errors.New("EOF")
+			}
+
 			// check dst against criteria, only continue if it passes
 			if pass, err := stmt.Where.Check(ds, src); err != nil {
 				return err
 			} else if !pass {
+				return nil
+			}
+
+			// check offset
+			if offset > 0 && skipped < offset {
+				skipped++
 				return nil
 			}
 
@@ -87,6 +107,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			}
 
 			w.Write(row)
+			added++
 
 			return nil
 		})

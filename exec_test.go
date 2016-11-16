@@ -49,6 +49,8 @@ func TestSelectFields(t *testing.T) {
 	}{
 		{"select * from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created, title, views, rating, notes from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select created from select_test limit 5", nil, []*dataset.Field{created}, 5},
+		{"select created from select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatype.Integer}}, 1},
 	}
 

@@ -7,6 +7,7 @@ package dataset_sql
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/qri-io/dataset"
@@ -2168,6 +2169,31 @@ func (node *Order) WalkSubtree(visit Visit) error {
 // LimitOffset represents a LIMIT clause.
 type LimitOffset struct {
 	Offset, Rowcount ValExpr
+}
+
+func (node *LimitOffset) GetOffset() int64 {
+	if node.Offset == nil {
+		return 0
+	}
+	if offset, err := strconv.ParseInt(string(node.Offset.Bytes()), 10, 64); err != nil {
+		return 0
+	} else {
+		return offset
+	}
+
+	return 0
+}
+
+func (node *LimitOffset) GetRowCount() int64 {
+	if node.Rowcount == nil {
+		return 0
+	}
+	if rowcount, err := strconv.ParseInt(string(node.Rowcount.Bytes()), 10, 64); err != nil {
+		return 0
+	} else {
+		return rowcount
+	}
+	return 0
 }
 
 // Format formats the node.
