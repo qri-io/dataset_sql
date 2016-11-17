@@ -45,11 +45,12 @@ func forceEOF(yylex interface{}) {
   colName     *ColName
   tableExprs  TableExprs
   tableExpr   TableExpr
-  tableName   *TableName
+  tableName   TableName
   indexHints  *IndexHints
   expr        Expr
   boolExpr    BoolExpr
   valExpr     ValExpr
+  castValExpr *CastValExpr
   colTuple    ColTuple
   valExprs    ValExprs
   values      Values
@@ -77,7 +78,7 @@ func forceEOF(yylex interface{}) {
 
 %token LEX_ERROR
 %left <empty> UNION
-%token <empty> SELECT INSERT UPDATE DELETE FROM WHERE GROUP HAVING ORDER BY LIMIT FOR
+%token <empty> SELECT INSERT UPDATE DELETE FROM CAST WHERE GROUP HAVING ORDER BY LIMIT FOR
 %token <empty> OFFSET
 %token <empty> ALL DISTINCT AS EXISTS ASC DESC INTO DUPLICATE KEY DEFAULT SET LOCK
 %token <empty> VALUES LAST_INSERT_ID
@@ -105,7 +106,7 @@ func forceEOF(yylex interface{}) {
 %left <empty> '^'
 %right <empty> '~' UNARY
 %right <empty> INTERVAL
-%nonassoc <empty> '.'
+%nonassoc <empty> '.' RIGHT_ARROW
 %left <empty> END
 
 // DDL Tokens
@@ -279,7 +280,7 @@ create_statement:
   }
 | CREATE VIEW sql_id force_eof
   {
-    $$ = &DDL{Action: CreateStr, NewName: &TableName{ Name : TableIdent($3.Lowered())} } 
+    $$ = &DDL{Action: CreateStr, NewName: TableName{TableIdent($3.Lowered())} } 
   }
 
 alter_statement:
@@ -294,7 +295,7 @@ alter_statement:
   }
 | ALTER VIEW sql_id force_eof
   {
-    $$ = &DDL{Action: AlterStr, Table: &TableName{ Name: TableIdent($3.Lowered()) }, NewName: &TableName{ Name : TableIdent($3.Lowered()) }}
+    $$ = &DDL{Action: AlterStr, Table: TableName{ TableIdent($3.Lowered()) }, NewName: TableName{TableIdent($3.Lowered()) }}
   }
 
 rename_statement:
@@ -323,7 +324,7 @@ drop_statement:
         if $3 != 0 {
           exists = true
         }
-    $$ = &DDL{Action: DropStr, Table: &TableName{ Name: TableIdent($4.Lowered()) }, IfExists: exists}
+    $$ = &DDL{Action: DropStr, Table: TableName{TableIdent($4.Lowered()) }, IfExists: exists}
   }
 
 analyze_statement:
@@ -416,7 +417,7 @@ select_expression:
   {
     $$ = &NonStarExpr{Expr: $1, As: $2}
   }
-| table_id '.' '*'
+| table_id RIGHT_ARROW '*'
   {
     $$ = &StarExpr{TableName: $1}
   }
@@ -568,15 +569,11 @@ natural_join:
 table_name:
   table_id
   {
-    $$ = &TableName{Name: $1}
+    $$ = TableName{$1}
   }
-| table_id '.' table_id
+| table_name '.' table_id
   {
-    $$ = &TableName{Qualifier: $1, Name: $3}
-  }
-| table_id '.' table_id '.' table_id
-  {
-    $$ = &TableName{User: $1, Qualifier: $3, Name: $5 }
+    $$ = append($1, $3)
   }
 
 index_hint_list:
@@ -787,9 +784,17 @@ value_expression:
   {
     $$ = $1
   }
+//| table_name RIGHT_ARROW sql_id
+//  {
+//    $$ = &ColName{Qualifier: $1, Name: $3}
+//  }
 | row_tuple
   {
     $$ = $1
+  }
+| CAST openb value_expression AS data_type closeb
+  {
+    $$ = &CastValExpr{ Val : $3, Type : $5}
   }
 | value_expression '&' value_expression
   {
@@ -930,17 +935,13 @@ column_name:
   {
     $$ = &ColName{Name: $1}
   }
-| table_id '.' sql_id
+| table_id RIGHT_ARROW sql_id
   {
-    $$ = &ColName{Qualifier: &TableName{Name: $1}, Name: $3}
+    $$ = &ColName{Qualifier: TableName{$1}, Name: $3 }
   }
-| table_id '.' table_id '.' sql_id
+| table_name RIGHT_ARROW sql_id
   {
-    $$ = &ColName{Qualifier: &TableName{Qualifier: $1, Name: $3}, Name: $5}
-  }
-| table_id '.' table_id '.' table_id '.' sql_id
-  {
-    $$ = &ColName{Qualifier: &TableName{User: $1, Qualifier: $3, Name: $5}, Name: $7}
+    $$ = &ColName{Qualifier: $1, Name: $3}
   }
 
 value:

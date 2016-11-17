@@ -261,7 +261,7 @@ func (node *Union) WalkSubtree(visit Visit) error {
 type Insert struct {
 	Comments Comments
 	Ignore   string
-	Table    *TableName
+	Table    TableName
 	Columns  Columns
 	Rows     InsertRows
 	OnDup    OnDup
@@ -306,7 +306,7 @@ func (Values) iInsertRows()  {}
 // Update represents an UPDATE statement.
 type Update struct {
 	Comments    Comments
-	Table       *TableName
+	Table       TableName
 	Exprs       UpdateExprs
 	Where       *Where
 	OrderBy     OrderBy
@@ -343,7 +343,7 @@ func (node *Update) WalkSubtree(visit Visit) error {
 // Delete represents a DELETE statement.
 type Delete struct {
 	Comments    Comments
-	Table       *TableName
+	Table       TableName
 	Where       *Where
 	OrderBy     OrderBy
 	LimitOffset *LimitOffset
@@ -408,8 +408,8 @@ func (node *Set) WalkSubtree(visit Visit) error {
 // ColDefs is set for CreateStr
 type DDL struct {
 	Action   string
-	Table    *TableName
-	NewName  *TableName
+	Table    TableName
+	NewName  TableName
 	ColDefs  ColDefs
 	IfExists bool
 }
@@ -549,7 +549,7 @@ func (node *StarExpr) Map(col int, src, dst *dataset.Dataset, srcRow, dstRow [][
 // Format formats the node.
 func (node *StarExpr) Format(buf *TrackedBuffer) {
 	if node.TableName != "" {
-		buf.Myprintf("%v.", node.TableName)
+		buf.Myprintf("%v->", node.TableName)
 	}
 	buf.Myprintf("*")
 }
@@ -886,56 +886,61 @@ type SimpleTableExpr interface {
 	SQLNode
 }
 
-func (*TableName) iSimpleTableExpr() {}
-func (*Subquery) iSimpleTableExpr()  {}
+func (TableName) iSimpleTableExpr() {}
+func (*Subquery) iSimpleTableExpr() {}
 
 // TableName represents a table  name.
 // Qualifier, if specified, represents a database.
 // It's generally not supported because vitess has its own
 // rules about which database to send a query to.
 // User is added to deal with Qri requests
-type TableName struct {
-	User, Qualifier, Name TableIdent
-}
+type TableName []TableIdent
 
-func (node *TableName) TableAddress() dataset.Address {
-	if node.User != "" && node.Qualifier != "" {
-		return dataset.NewAddress(node.User.String(), node.Qualifier.String())
-	} else if node.Qualifier != "" {
-		return dataset.NewAddress(node.Qualifier.String())
+func (node TableName) TableAddress() dataset.Address {
+	if node == nil {
+		return dataset.NewAddress("")
 	}
-	return dataset.NewAddress(node.Name.String())
+
+	strs := make([]string, len(node))
+	for i, id := range node {
+		strs[i] = id.String()
+	}
+
+	return dataset.NewAddress(strs...)
 }
 
 // Format formats the node.
-func (node *TableName) Format(buf *TrackedBuffer) {
+func (node TableName) Format(buf *TrackedBuffer) {
 	// node can be nil for unqualified column names.
 	if node == nil {
 		return
 	}
-	if node.User != "" && node.Qualifier != "" {
-		buf.Myprintf("%v.%v.", node.User, node.Qualifier)
-	} else if node.Qualifier != "" {
-		buf.Myprintf("%v.", node.Qualifier)
+
+	for i, ident := range node {
+		if i == 0 {
+			buf.Myprintf("%v", ident)
+		} else {
+			buf.Myprintf(".%v", ident)
+		}
 	}
-	buf.Myprintf("%v", node.Name)
 }
 
 // WalkSubtree walks the nodes of the subtree
-func (node *TableName) WalkSubtree(visit Visit) error {
+func (node TableName) WalkSubtree(visit Visit) error {
 	if node == nil {
 		return nil
 	}
-	return Walk(
-		visit,
-		node.Name,
-		node.Qualifier,
-	)
+	for _, ident := range node {
+		if err := Walk(visit, ident); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // IsEmpty returns true if TableName is nil or empty.
-func (node *TableName) IsEmpty() bool {
-	return node == nil || (node.Qualifier == "" && node.Name == "")
+func (node TableName) IsEmpty() bool {
+	return node == nil
 }
 
 // ParenTableExpr represents a parenthesized list of TableExpr.
@@ -1123,6 +1128,7 @@ func (*UnaryExpr) iExpr()      {}
 func (*IntervalExpr) iExpr()   {}
 func (*FuncExpr) iExpr()       {}
 func (*CaseExpr) iExpr()       {}
+func (*CastValExpr) iExpr()    {}
 
 // BoolExpr represents a boolean expression.
 type BoolExpr interface {
@@ -1474,6 +1480,7 @@ func (*UnaryExpr) iValExpr()    {}
 func (*IntervalExpr) iValExpr() {}
 func (*FuncExpr) iValExpr()     {}
 func (*CaseExpr) iValExpr()     {}
+func (*CastValExpr) iValExpr()  {}
 
 // StrVal represents a string value.
 type StrVal []byte
@@ -1611,7 +1618,7 @@ type ColName struct {
 	// table or column this node references.
 	Metadata  interface{}
 	Name      ColIdent
-	Qualifier *TableName
+	Qualifier TableName
 }
 
 func (node ColName) Bytes() []byte {
@@ -1653,7 +1660,7 @@ func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
 // Format formats the node.
 func (node *ColName) Format(buf *TrackedBuffer) {
 	if !node.Qualifier.IsEmpty() {
-		buf.Myprintf("%v.", node.Qualifier)
+		buf.Myprintf("%v->", node.Qualifier)
 	}
 	buf.Myprintf("%v", node.Name)
 }
@@ -1668,6 +1675,40 @@ func (node *ColName) WalkSubtree(visit Visit) error {
 		node.Name,
 		node.Qualifier,
 	)
+}
+
+// CastVal casts a value to a different data type
+type CastValExpr struct {
+	Val  ValExpr
+	Type *DataType
+}
+
+// Format formats the node, uses long-form syntax
+func (node *CastValExpr) Format(buf *TrackedBuffer) {
+	buf.Myprintf("cast(%v as %v)", node.Val, node.Type)
+}
+
+// WalkSubtree calls visit on all fields
+func (node *CastValExpr) WalkSubtree(visit Visit) error {
+	if node == nil {
+		return nil
+	}
+
+	return Walk(visit, node.Val, node.Type)
+}
+
+func (node *CastValExpr) Eval(ds *dataset.Dataset, row [][]byte) (Expr, error) {
+	// TODO
+	return nil, nil
+}
+
+func (node *CastValExpr) compare(string, ValExpr) (BoolVal, error) {
+	// TODO
+	return BoolVal(false), nil
+}
+func (node *CastValExpr) Bytes() []byte {
+	// TODO
+	return nil
 }
 
 // ColTuple represents a list of column values.

@@ -14,13 +14,13 @@ import (
 
 // GetTableName returns the table name from the SimpleTableExpr
 // only if it's a simple expression. Otherwise, it returns "".
-func GetTableName(node SimpleTableExpr) string {
-	if n, ok := node.(*TableName); ok && n.Qualifier == "" {
-		return string(n.Name)
-	}
-	// sub-select or '.' expression
-	return ""
-}
+// func GetTableName(node SimpleTableExpr) string {
+// 	if n, ok := node.(*TableName); ok && n.Qualifier == "" {
+// 		return string(n.Name)
+// 	}
+// 	// sub-select or '.' expression
+// 	return ""
+// }
 
 // IsColName returns true if the ValExpr is a *ColName.
 func IsColName(node ValExpr) bool {

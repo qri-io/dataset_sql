@@ -59,6 +59,7 @@ var keywords = map[string]int{
 	"call":                UNUSED,
 	"cascade":             UNUSED,
 	"case":                CASE,
+	"cast":                CAST,
 	"change":              UNUSED,
 	"char":                UNUSED,
 	"character":           UNUSED,
@@ -109,9 +110,9 @@ var keywords = map[string]int{
 	"explain":             EXPLAIN,
 	"false":               FALSE,
 	"fetch":               UNUSED,
-	"float":               UNUSED,
-	"float4":              UNUSED,
-	"float8":              UNUSED,
+	"float":               FLOAT,
+	"float4":              FLOAT,
+	"float8":              FLOAT,
 	"for":                 FOR,
 	"force":               FORCE,
 	"foreign":             UNUSED,
@@ -334,6 +335,14 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 		return tkn.scanBindVar()
 	default:
 		tkn.next()
+
+		// ugly as sin but it works
+		// TODO - make this not ugly
+		if tkn.lastChar == '>' && ch == '-' {
+			tkn.next()
+			return RIGHT_ARROW, nil
+		}
+
 		switch ch {
 		case eofChar:
 			return 0, nil
@@ -387,6 +396,7 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 				return int(ch), nil
 			}
 		case '>':
+			// fmt.Println(tkn.lastChar, int('-'), string(tkn.lastChar))
 			switch tkn.lastChar {
 			case '=':
 				tkn.next()
