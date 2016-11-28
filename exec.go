@@ -21,8 +21,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			err = e
 			return
 		} else {
-			err = result.AddChild(ds)
-			// result.Datasets = append(result.Datasets, ds)
+			result.Datasets = append(result.Datasets, ds)
 		}
 	}
 
@@ -32,7 +31,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
 			name := string(star.TableName)
-			for _, ds := range result.Children() {
+			for _, ds := range result.Datasets {
 				// we add fields if the names match, or if no name is specified
 				if ds.Name == name || name == "" {
 					result.Fields = append(result.Fields, ds.Fields...)
@@ -62,7 +61,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 					return false, err
 				}
 			} else {
-				for _, ds := range result.Children() {
+				for _, ds := range result.Datasets {
 					if field := ds.FieldForName(colName.Name.String()); field != nil {
 						colName.Type = field.Type.String()
 						return true, nil
@@ -92,7 +91,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 
 	// 3. Populate dataset data by iterating through each dataset.dataset, projecting the source dataset onto the result dataset.
 	// 		Then evaluate if the projected row passes any where clauses
-	for _, ds := range result.Children() {
+	for _, ds := range result.Datasets {
 		err = ds.EachRow(func(rowNum int, src [][]byte, e error) (err error) {
 			if e != nil {
 				return e

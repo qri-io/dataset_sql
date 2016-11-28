@@ -606,7 +606,7 @@ func (node *NonStarExpr) FieldType(result *dataset.Dataset) datatype.Type {
 	switch node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
-		for _, ds := range result.Children() {
+		for _, ds := range result.Datasets {
 			for _, f := range ds.Fields {
 				// fmt.Println(name.Name.String(), f.Name)
 				if colName.Name.String() == f.Name {
