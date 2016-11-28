@@ -36,14 +36,16 @@ func TestSelectFields(t *testing.T) {
 		o.Name = "select_test"
 		o.Address = dataset.NewAddress("select_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
-		o.NumRecords = 10
+		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
+		o.NumRandRecords = 9
 	})
 
 	dsTwo := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
 		o.Name = "select_test_two"
 		o.Address = dataset.NewAddress("select_test_two")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
-		o.NumRecords = 10
+		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
+		o.NumRandRecords = 9
 	})
 
 	domain := &TestDomain{datasets: []*dataset.Dataset{ds, dsTwo}}
@@ -54,11 +56,14 @@ func TestSelectFields(t *testing.T) {
 		fields    []*dataset.Field
 		numRows   int
 	}{
-		// {"select * from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		// {"select created, title, views, rating, notes from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		// {"select select_test->created from select_test limit 5", nil, []*dataset.Field{created}, 5},
-		// {"select created from select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select * from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select created, title, views, rating, notes from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select select_test->created from select_test limit 5", nil, []*dataset.Field{created}, 5},
+		{"select created from select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		{"select * from select_test, select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 20},
+		{"select * from select_test where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from select_test_two where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		{"select * from select_test_two where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatype.Integer}}, 1},
 	}
 

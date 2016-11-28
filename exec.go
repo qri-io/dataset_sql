@@ -21,24 +21,18 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			err = e
 			return
 		} else {
-			// if err = ds.Read(r.ObjectsPath()); err != nil {
-			// 	return
-			// }
-			// ds.Data, err = ds.FetchBytes(r.base)
-			// if err != nil {
-			// 	return
-			// }
-			result.Datasets = append(result.Datasets, ds)
+			err = result.AddChild(ds)
+			// result.Datasets = append(result.Datasets, ds)
 		}
 	}
 
 	// TODO... Sort each table by select sort criteria here?
 
-	// 2. Build dataset destination fields
+	// Build dataset destination fields
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
 			name := string(star.TableName)
-			for _, ds := range result.Datasets {
+			for _, ds := range result.Children() {
 				// we add fields if the names match, or if no name is specified
 				if ds.Name == name || name == "" {
 					result.Fields = append(result.Fields, ds.Fields...)
@@ -51,6 +45,37 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			})
 		}
 	}
+
+	// TODO - column ambiguity check
+
+	// Populate any ColName nodes with their type information
+	stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
+		if colName, ok := node.(*ColName); ok && node != nil {
+			if colName.Qualifier != nil {
+				if ds, err := result.DatasetForAddress(colName.Qualifier.TableAddress()); err == nil {
+					if field := ds.FieldForName(colName.Name.String()); field != nil {
+						colName.Type = field.Type.String()
+						return true, nil
+					}
+					return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
+				} else {
+					return false, err
+				}
+			} else {
+				for _, ds := range result.Children() {
+					if field := ds.FieldForName(colName.Name.String()); field != nil {
+						colName.Type = field.Type.String()
+						return true, nil
+					} else {
+						return false, err
+					}
+				}
+				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", colName.Name.String())
+			}
+		}
+
+		return true, nil
+	})
 
 	results := bytes.NewBuffer(nil)
 	w := csv.NewWriter(results)
@@ -67,7 +92,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 
 	// 3. Populate dataset data by iterating through each dataset.dataset, projecting the source dataset onto the result dataset.
 	// 		Then evaluate if the projected row passes any where clauses
-	for _, ds := range result.Datasets {
+	for _, ds := range result.Children() {
 		err = ds.EachRow(func(rowNum int, src [][]byte, e error) (err error) {
 			if e != nil {
 				return e
@@ -78,7 +103,7 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 			}
 
 			// check dst against criteria, only continue if it passes
-			if pass, err := stmt.Where.Check(ds, src); err != nil {
+			if pass, err := stmt.Where.EvalBool(ds, src); err != nil {
 				return err
 			} else if !pass {
 				return nil

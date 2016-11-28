@@ -3,6 +3,8 @@ package dataset_sql
 import (
 	"fmt"
 
+	"github.com/qri-io/datatype"
+
 	"strings"
 )
 
@@ -31,10 +33,10 @@ func (a StrVal) compare(op string, b ValExpr) (BoolVal, error) {
 	case NotInStr:
 		result = !strings.Contains(a.String(), b.(StrVal).String())
 	case LikeStr:
-		// TODO!!
+		// TODO
 		return BoolVal(false), ErrNotYetImplemented
 	case NotLikeStr:
-		// TODO!!
+		// TODO
 		return BoolVal(false), ErrNotYetImplemented
 	case RegexpStr:
 		// TODO
@@ -49,7 +51,35 @@ func (a StrVal) compare(op string, b ValExpr) (BoolVal, error) {
 
 // Numeric Comparison
 func (a NumVal) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	ai := a.Int()
+	bi := 0
+	if i, ok := b.(NumVal); ok {
+		bi = i.Int()
+	} else {
+		return BoolVal(false), ErrInvalidComparison
+	}
+
+	switch op {
+	case EqualStr:
+		return BoolVal(ai == bi), nil
+	case LessThanStr:
+		return BoolVal(ai < bi), nil
+	case GreaterThanStr:
+		return BoolVal(ai > bi), nil
+	case LessEqualStr:
+		return BoolVal(ai <= bi), nil
+	case GreaterEqualStr:
+		return BoolVal(ai >= bi), nil
+	case NotEqualStr:
+		return BoolVal(ai != bi), nil
+	// case NotSafeEqualStr:
+	// 	return BoolVal(ai == bi), nil
+	// case InStr, NotInStr, LikeStr, NotLikeStr, RegexpStr, NotRegexpStr:
+	default:
+		return BoolVal(false), ErrInvalidComparison
+	}
+
+	return BoolVal(false), ErrInvalidComparison
 }
 
 // Value Comparison
@@ -64,11 +94,34 @@ func (a *NullVal) compare(op string, b ValExpr) (BoolVal, error) {
 
 // Bool Comparison
 func (a BoolVal) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	if _, ok := b.(BoolVal); !ok {
+		return BoolVal(false), ErrInvalidComparison
+	}
+
+	switch op {
+	case EqualStr:
+		return BoolVal(a == b), nil
+	case NotEqualStr:
+		return BoolVal(a != b), nil
+	// case NotSafeEqualStr:
+	// 	return BoolVal(a == b), nil
+	default:
+		return BoolVal(false), ErrInvalidComparison
+	}
+	return BoolVal(false), ErrInvalidComparison
 }
 
 // Column Comparison
 func (a *ColName) compare(op string, b ValExpr) (BoolVal, error) {
+	switch a.Type {
+	case datatype.String.String():
+
+	case datatype.Integer.String():
+	case datatype.Float.String():
+	case datatype.Date.String():
+	default:
+		return BoolVal(false), ErrInvalidComparison
+	}
 	return BoolVal(false), ErrNotYetImplemented
 }
 
