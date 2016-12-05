@@ -9,15 +9,15 @@ import (
 	"github.com/qri-io/dataset"
 )
 
-type Domain interface {
-	DatasetForAddress(dataset.Address) (*dataset.Dataset, error)
+type Namespace interface {
+	Dataset(dataset.Address) (*dataset.Dataset, error)
 }
 
-func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error) {
+func execSelect(stmt *Select, namespace Namespace) (result *dataset.Dataset, err error) {
 	result = &dataset.Dataset{}
 	// 1. Gather all mentioned tables, attaching them to dataset.Dataset
 	for _, adr := range stmt.From.TableAddresses() {
-		if ds, e := domain.DatasetForAddress(adr); e != nil {
+		if ds, e := namespace.Dataset(adr); e != nil {
 			err = e
 			return
 		} else {
@@ -146,31 +146,31 @@ func execSelect(stmt *Select, domain Domain) (result *dataset.Dataset, err error
 	return
 }
 
-func execUnion(node *Union, domain Domain) (*dataset.Dataset, error) {
+func execUnion(node *Union, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("union statements are not yet supported")
 }
 
-func execInsert(node *Insert, domain Domain) (*dataset.Dataset, error) {
+func execInsert(node *Insert, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("insert statements are not yet supported")
 }
 
-func execUpdate(node *Update, domain Domain) (*dataset.Dataset, error) {
+func execUpdate(node *Update, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("update statements are not yet supported")
 }
 
-func execDelete(node *Delete, domain Domain) (*dataset.Dataset, error) {
+func execDelete(node *Delete, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("delete statements are not yet supported")
 }
 
-func execSet(node *Set, domain Domain) (*dataset.Dataset, error) {
+func execSet(node *Set, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("set statements are not yet supported")
 }
 
-func execDDL(node *DDL, domain Domain) (*dataset.Dataset, error) {
+func execDDL(node *DDL, namespace Namespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("ddl statements are not yet supported")
 }
 
-func execOther(node *Other, domain Domain) (*dataset.Dataset, error) {
+func execOther(node *Other, namespace Namespace) (*dataset.Dataset, error) {
 	// TODO - lolololol
 	return nil, fmt.Errorf("other statements are not yet supported")
 }

@@ -11,11 +11,11 @@ import (
 	"github.com/qri-io/datatype"
 )
 
-type TestDomain struct {
+type TestNamespace struct {
 	datasets []*dataset.Dataset
 }
 
-func (t *TestDomain) DatasetForAddress(adr dataset.Address) (*dataset.Dataset, error) {
+func (t *TestNamespace) Dataset(adr dataset.Address) (*dataset.Dataset, error) {
 	for _, ds := range t.datasets {
 		if ds.Address.Equal(adr) {
 			return ds, nil
@@ -48,7 +48,7 @@ func TestSelectFields(t *testing.T) {
 		o.NumRandRecords = 9
 	})
 
-	domain := &TestDomain{datasets: []*dataset.Dataset{ds, dsTwo}}
+	domain := &TestNamespace{datasets: []*dataset.Dataset{ds, dsTwo}}
 
 	cases := []struct {
 		statement string

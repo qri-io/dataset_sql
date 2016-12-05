@@ -96,7 +96,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(domain Domain) (*dataset.Dataset, error)
+	Exec(namespace Namespace) (*dataset.Dataset, error)
 	SQLNode
 }
 
@@ -114,7 +114,7 @@ type SelectStatement interface {
 	iSelectStatement()
 	iStatement()
 	iInsertRows()
-	Exec(domain Domain) (*dataset.Dataset, error)
+	Exec(namespace Namespace) (*dataset.Dataset, error)
 	SQLNode
 }
 
@@ -148,8 +148,8 @@ const (
 	ShareModeStr = " lock in share mode"
 )
 
-func (node *Select) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execSelect(node, domain)
+func (node *Select) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execSelect(node, namespace)
 }
 
 // Format formats the node.
@@ -238,8 +238,8 @@ const (
 	UnionDistinctStr = "union distinct"
 )
 
-func (node *Union) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execUnion(node, domain)
+func (node *Union) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execUnion(node, namespace)
 }
 
 // Format formats the node.
@@ -269,8 +269,8 @@ type Insert struct {
 	OnDup    OnDup
 }
 
-func (node *Insert) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execInsert(node, domain)
+func (node *Insert) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execInsert(node, namespace)
 }
 
 // Format formats the node.
@@ -315,8 +315,8 @@ type Update struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Update) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execUpdate(node, domain)
+func (node *Update) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execUpdate(node, namespace)
 }
 
 // Format formats the node.
@@ -351,8 +351,8 @@ type Delete struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Delete) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execDelete(node, domain)
+func (node *Delete) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execDelete(node, namespace)
 }
 
 // Format formats the node.
@@ -383,8 +383,8 @@ type Set struct {
 	Exprs    UpdateExprs
 }
 
-func (node *Set) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execSet(node, domain)
+func (node *Set) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execSet(node, namespace)
 }
 
 // Format formats the node.
@@ -424,8 +424,8 @@ const (
 	RenameStr = "rename"
 )
 
-func (node *DDL) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execDDL(node, domain)
+func (node *DDL) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execDDL(node, namespace)
 }
 
 // Format formats the node.
@@ -468,8 +468,8 @@ func (node *DDL) WalkSubtree(visit Visit) error {
 // the full AST for the statement.
 type Other struct{}
 
-func (node *Other) Exec(domain Domain) (*dataset.Dataset, error) {
-	return execOther(node, domain)
+func (node *Other) Exec(namespace Namespace) (*dataset.Dataset, error) {
+	return execOther(node, namespace)
 }
 
 // Format formats the node.
