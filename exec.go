@@ -7,20 +7,25 @@ import (
 	"fmt"
 
 	"github.com/qri-io/dataset"
+	"github.com/qri-io/namespace"
 )
 
-type Namespace interface {
-	Dataset(dataset.Address) (*dataset.Dataset, error)
-}
-
-func execSelect(stmt *Select, namespace Namespace) (result *dataset.Dataset, err error) {
+func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.Dataset, err error) {
 	result = &dataset.Dataset{}
 	// 1. Gather all mentioned tables, attaching them to dataset.Dataset
 	for _, adr := range stmt.From.TableAddresses() {
-		if ds, e := namespace.Dataset(adr); e != nil {
+		if ds, e := ns.Dataset(adr); e != nil {
 			err = e
 			return
 		} else {
+			store, err := ns.Store(ds.Address)
+			if err != nil {
+				return result, err
+			}
+			ds.Data, err = ds.FetchBytes(store)
+			if err != nil {
+				return result, err
+			}
 			result.Datasets = append(result.Datasets, ds)
 		}
 	}
@@ -146,31 +151,31 @@ func execSelect(stmt *Select, namespace Namespace) (result *dataset.Dataset, err
 	return
 }
 
-func execUnion(node *Union, namespace Namespace) (*dataset.Dataset, error) {
+func execUnion(node *Union, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("union statements are not yet supported")
 }
 
-func execInsert(node *Insert, namespace Namespace) (*dataset.Dataset, error) {
+func execInsert(node *Insert, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("insert statements are not yet supported")
 }
 
-func execUpdate(node *Update, namespace Namespace) (*dataset.Dataset, error) {
+func execUpdate(node *Update, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("update statements are not yet supported")
 }
 
-func execDelete(node *Delete, namespace Namespace) (*dataset.Dataset, error) {
+func execDelete(node *Delete, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("delete statements are not yet supported")
 }
 
-func execSet(node *Set, namespace Namespace) (*dataset.Dataset, error) {
+func execSet(node *Set, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("set statements are not yet supported")
 }
 
-func execDDL(node *DDL, namespace Namespace) (*dataset.Dataset, error) {
+func execDDL(node *DDL, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	return nil, fmt.Errorf("ddl statements are not yet supported")
 }
 
-func execOther(node *Other, namespace Namespace) (*dataset.Dataset, error) {
+func execOther(node *Other, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
 	// TODO - lolololol
 	return nil, fmt.Errorf("other statements are not yet supported")
 }

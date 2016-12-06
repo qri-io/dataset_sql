@@ -3,27 +3,27 @@ package dataset_sql
 import (
 	"bytes"
 	"encoding/csv"
-	"fmt"
 	"testing"
 
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/dataset_generate"
 	"github.com/qri-io/datatype"
+	"github.com/qri-io/namespace/mem"
 )
 
-type TestNamespace struct {
-	datasets []*dataset.Dataset
-}
+// type TestNamespace struct {
+// 	datasets []*dataset.Dataset
+// }
 
-func (t *TestNamespace) Dataset(adr dataset.Address) (*dataset.Dataset, error) {
-	for _, ds := range t.datasets {
-		if ds.Address.Equal(adr) {
-			return ds, nil
-		}
-	}
+// func (t *TestNamespace) Dataset(adr dataset.Address) (*dataset.Dataset, error) {
+// 	for _, ds := range t.datasets {
+// 		if ds.Address.Equal(adr) {
+// 			return ds, nil
+// 		}
+// 	}
 
-	return nil, fmt.Errorf("Not Found")
-}
+// 	return nil, fmt.Errorf("Not Found")
+// }
 
 func TestSelectFields(t *testing.T) {
 	created := &dataset.Field{Name: "created", Type: datatype.Date}
@@ -34,7 +34,7 @@ func TestSelectFields(t *testing.T) {
 
 	ds := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
 		o.Name = "select_test"
-		o.Address = dataset.NewAddress("select_test")
+		o.Address = dataset.NewAddress("test.select_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
@@ -42,13 +42,13 @@ func TestSelectFields(t *testing.T) {
 
 	dsTwo := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
 		o.Name = "select_test_two"
-		o.Address = dataset.NewAddress("select_test_two")
+		o.Address = dataset.NewAddress("test.select_test_two")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
 	})
 
-	domain := &TestNamespace{datasets: []*dataset.Dataset{ds, dsTwo}}
+	ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Dataset{ds, dsTwo}, nil)
 
 	cases := []struct {
 		statement string
@@ -56,14 +56,14 @@ func TestSelectFields(t *testing.T) {
 		fields    []*dataset.Field
 		numRows   int
 	}{
-		{"select * from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		{"select created, title, views, rating, notes from select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		{"select select_test->created from select_test limit 5", nil, []*dataset.Field{created}, 5},
-		{"select created from select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
-		{"select * from select_test, select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 20},
-		{"select * from select_test where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		{"select * from select_test_two where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
-		{"select * from select_test_two where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select created, title, views, rating, notes from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select select_test->created from test.select_test limit 5", nil, []*dataset.Field{created}, 5},
+		{"select created from test.select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select * from test.select_test, test.select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 20},
+		{"select * from test.select_test where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from test.select_test_two where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		{"select * from test.select_test_two where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatype.Integer}}, 1},
 	}
 
@@ -74,7 +74,7 @@ func TestSelectFields(t *testing.T) {
 			continue
 		}
 
-		results, err := stmt.Exec(domain)
+		results, err := stmt.Exec(ns)
 		if err != c.expect {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.expect, err.Error())
 			continue

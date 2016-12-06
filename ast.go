@@ -16,6 +16,7 @@ import (
 	"github.com/qri-io/dataset_sql/deps/cistring"
 	"github.com/qri-io/dataset_sql/deps/sqltypes"
 	"github.com/qri-io/datatype"
+	"github.com/qri-io/namespace"
 )
 
 var ErrNotYetImplemented = fmt.Errorf("Not Yet Implemented")
@@ -96,7 +97,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(namespace Namespace) (*dataset.Dataset, error)
+	Exec(namespace.StorableNamespace) (*dataset.Dataset, error)
 	SQLNode
 }
 
@@ -114,7 +115,7 @@ type SelectStatement interface {
 	iSelectStatement()
 	iStatement()
 	iInsertRows()
-	Exec(namespace Namespace) (*dataset.Dataset, error)
+	Exec(namespace.StorableNamespace) (*dataset.Dataset, error)
 	SQLNode
 }
 
@@ -148,8 +149,8 @@ const (
 	ShareModeStr = " lock in share mode"
 )
 
-func (node *Select) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execSelect(node, namespace)
+func (node *Select) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execSelect(node, ns)
 }
 
 // Format formats the node.
@@ -238,8 +239,8 @@ const (
 	UnionDistinctStr = "union distinct"
 )
 
-func (node *Union) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execUnion(node, namespace)
+func (node *Union) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execUnion(node, ns)
 }
 
 // Format formats the node.
@@ -269,8 +270,8 @@ type Insert struct {
 	OnDup    OnDup
 }
 
-func (node *Insert) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execInsert(node, namespace)
+func (node *Insert) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execInsert(node, ns)
 }
 
 // Format formats the node.
@@ -315,8 +316,8 @@ type Update struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Update) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execUpdate(node, namespace)
+func (node *Update) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execUpdate(node, ns)
 }
 
 // Format formats the node.
@@ -351,8 +352,8 @@ type Delete struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Delete) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execDelete(node, namespace)
+func (node *Delete) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execDelete(node, ns)
 }
 
 // Format formats the node.
@@ -383,8 +384,8 @@ type Set struct {
 	Exprs    UpdateExprs
 }
 
-func (node *Set) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execSet(node, namespace)
+func (node *Set) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execSet(node, ns)
 }
 
 // Format formats the node.
@@ -424,8 +425,8 @@ const (
 	RenameStr = "rename"
 )
 
-func (node *DDL) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execDDL(node, namespace)
+func (node *DDL) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execDDL(node, ns)
 }
 
 // Format formats the node.
@@ -468,8 +469,8 @@ func (node *DDL) WalkSubtree(visit Visit) error {
 // the full AST for the statement.
 type Other struct{}
 
-func (node *Other) Exec(namespace Namespace) (*dataset.Dataset, error) {
-	return execOther(node, namespace)
+func (node *Other) Exec(ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+	return execOther(node, ns)
 }
 
 // Format formats the node.
