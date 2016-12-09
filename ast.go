@@ -19,7 +19,10 @@ import (
 	"github.com/qri-io/namespace"
 )
 
-var ErrNotYetImplemented = fmt.Errorf("Not Yet Implemented")
+// NotYetImplemented reports missing features. it'd be lovely to not need this ;)
+func NotYetImplemented(feature string) error {
+	return fmt.Errorf("%s are not implemented. check docs.qri.io/releases for info", feature)
+}
 
 // Instructions for creating new types: If a type
 // needs to satisfy an interface, declare that function
@@ -1395,7 +1398,7 @@ func (node *RangeCond) Eval(ds *dataset.Dataset, row [][]byte) (exp ValExpr, err
 
 func (node *RangeCond) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("range conditions")
 }
 
 // Format formats the node.
@@ -1438,7 +1441,7 @@ func (node *IsExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp ValExpr, err er
 
 func (node *IsExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("'is' expressions")
 }
 
 // Format formats the node.
@@ -1468,7 +1471,7 @@ func (node *ExistsExpr) Eval(ds *dataset.Dataset, row [][]byte) (exp ValExpr, er
 
 func (node *ExistsExpr) EvalBool(ds *dataset.Dataset, row [][]byte) (BoolVal, error) {
 	// TODO
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("'exisits' expressions")
 }
 
 // Format formats the node.
@@ -1770,7 +1773,7 @@ func (node ValTuple) Bytes() []byte {
 func (node ValTuple) Eval(ds *dataset.Dataset, row [][]byte) (ValExpr, error) {
 	fmt.Println("eval tuple")
 	// TODO
-	return nil, ErrNotYetImplemented
+	return nil, NotYetImplemented("evaluating value tuples")
 }
 
 // Format formats the node.
@@ -2025,7 +2028,7 @@ func (node *FuncExpr) Bytes() []byte {
 }
 
 func (node *FuncExpr) Eval(d *dataset.Dataset, row [][]byte) (ValExpr, error) {
-	return nil, ErrNotYetImplemented
+	return nil, NotYetImplemented("function expressions")
 }
 
 // Format formats the node.
@@ -2089,7 +2092,7 @@ func (node *CaseExpr) Bytes() []byte {
 }
 
 func (node *CaseExpr) Eval(d *dataset.Dataset, row [][]byte) (ValExpr, error) {
-	return nil, ErrNotYetImplemented
+	return nil, NotYetImplemented("case expressions")
 }
 
 // Format formats the node.

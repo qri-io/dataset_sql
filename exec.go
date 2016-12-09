@@ -145,17 +145,6 @@ func populateColNames(stmt *Select, ds *dataset.Dataset) error {
 					idx += len(d.Fields)
 				}
 				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
-
-				// if d, err := ds.DatasetForAddress(colName.Qualifier.TableAddress()); err == nil {
-				// 	if field := d.FieldForName(colName.Name.String()); field != nil {
-				// 		colName.Type = field.Type.String()
-				// 		colName.MasterIndex = idx
-				// 		return true, nil
-				// 	}
-				// 	return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
-				// } else {
-				// 	return false, err
-				// }
 			} else {
 				idx := 0
 				for _, d := range ds.Datasets {
@@ -298,6 +287,7 @@ func subsetFieldCount(result *dataset.Dataset) (count int) {
 	return
 }
 
+// nodeColIndex
 func nodeColIndex(result *dataset.Dataset, node SelectExpr) (idx int, err error) {
 	if nse, ok := node.(*NonStarExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
@@ -316,6 +306,7 @@ func nodeColIndex(result *dataset.Dataset, node SelectExpr) (idx int, err error)
 	return 0, fmt.Errorf("node is not a non-star select expression")
 }
 
+// intSeries returns a slice sized by length that counts from start upward
 func intSeries(start, length int) (series []int) {
 	series = make([]int, length)
 	for i := 0; i < length; i++ {
@@ -324,6 +315,7 @@ func intSeries(start, length int) (series []int) {
 	return
 }
 
+// masterRowLength sums all fields of a dataset's children
 func masterRowLength(ds *dataset.Dataset) (l int) {
 	for _, d := range ds.Datasets {
 		l += len(d.Fields)

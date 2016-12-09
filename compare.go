@@ -3,8 +3,6 @@ package dataset_sql
 import (
 	"fmt"
 
-	"github.com/qri-io/datatype"
-
 	"strings"
 )
 
@@ -34,16 +32,16 @@ func (a StrVal) compare(op string, b ValExpr) (BoolVal, error) {
 		result = !strings.Contains(a.String(), b.(StrVal).String())
 	case LikeStr:
 		// TODO
-		return BoolVal(false), ErrNotYetImplemented
+		return BoolVal(false), NotYetImplemented("comparing like strings")
 	case NotLikeStr:
 		// TODO
-		return BoolVal(false), ErrNotYetImplemented
+		return BoolVal(false), NotYetImplemented("comparing not like like strings")
 	case RegexpStr:
 		// TODO
-		return BoolVal(false), ErrNotYetImplemented
+		return BoolVal(false), NotYetImplemented("comparing regex strings")
 	case NotRegexpStr:
 		// TODO
-		return BoolVal(false), ErrNotYetImplemented
+		return BoolVal(false), NotYetImplemented("comparing not-regex strings")
 	}
 
 	return BoolVal(result), nil
@@ -84,12 +82,12 @@ func (a NumVal) compare(op string, b ValExpr) (BoolVal, error) {
 
 // Value Comparison
 func (a ValArg) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("comparing value arguments")
 }
 
 // Null Comparison
 func (a *NullVal) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("comparing null operations")
 }
 
 // Bool Comparison
@@ -111,47 +109,51 @@ func (a BoolVal) compare(op string, b ValExpr) (BoolVal, error) {
 	return BoolVal(false), ErrInvalidComparison
 }
 
-// Column Comparison
+// Column Comparison should never happen, columns should be evaluated into concrete values
 func (a *ColName) compare(op string, b ValExpr) (BoolVal, error) {
-	switch a.Type {
-	case datatype.String.String():
+	// switch a.Type {
+	// case datatype.String.String():
 
-	case datatype.Integer.String():
-	case datatype.Float.String():
-	case datatype.Date.String():
-	default:
-		return BoolVal(false), ErrInvalidComparison
-	}
-	return BoolVal(false), ErrNotYetImplemented
+	// case datatype.Integer.String():
+	// case datatype.Float.String():
+	// case datatype.Date.String():
+	// default:
+	// 	return BoolVal(false), ErrInvalidComparison
+	// }
+	return BoolVal(false), ErrInvalidComparison
 }
 
 // Tuple Comparison
 func (a ValTuple) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("tuple comparison operations")
 }
 
 // Subquery Comparison
 func (a *Subquery) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("subquery comparison operations")
 }
 
 // List Comparison
 func (a ListArg) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("list-argument comparison operations")
 }
 
 func (a *BinaryExpr) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("binary-value comparison operations")
 }
 func (a *UnaryExpr) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("unary expression comparison operations")
 }
 func (a *IntervalExpr) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), NotYetImplemented("interval value comparison operations")
 }
+
+// functions need to be evaluated before comparison
 func (a *FuncExpr) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), ErrInvalidComparison
 }
+
+// case expressions need to be evaluated before comparison
 func (a *CaseExpr) compare(op string, b ValExpr) (BoolVal, error) {
-	return BoolVal(false), ErrNotYetImplemented
+	return BoolVal(false), ErrInvalidComparison
 }
