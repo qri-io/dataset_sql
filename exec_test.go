@@ -57,13 +57,15 @@ func TestSelectFields(t *testing.T) {
 		numRows   int
 	}{
 		{"select * from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		{"select created, title, views, rating, notes from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		{"select select_test->created from test.select_test limit 5", nil, []*dataset.Field{created}, 5},
-		{"select created from test.select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
-		{"select * from test.select_test, test.select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 20},
-		{"select * from test.select_test where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		{"select * from test.select_test_two where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
-		{"select * from test.select_test_two where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		// {"select created, title, views, rating, notes from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		// {"select select_test->created from test.select_test limit 5", nil, []*dataset.Field{created}, 5},
+		// {"select created from test.select_test limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		// {"select * from test.select_test where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		// {"select * from test.select_test_two where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		// {"select * from test.select_test_two where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from test.select_test, test.select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
+		// {"select * from test.select_test, test.select_test_two where test.select_test->created = test.select_test_two->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		// {"select * from test.select_test as a, test.select_test_two as b where a->created = b->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 10},
 		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatype.Integer}}, 1},
 	}
 
