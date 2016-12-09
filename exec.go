@@ -131,23 +131,42 @@ func populateColNames(stmt *Select, ds *dataset.Dataset) error {
 	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
 		if colName, ok := node.(*ColName); ok && node != nil {
 			if colName.Qualifier != nil {
-				if d, err := ds.DatasetForAddress(colName.Qualifier.TableAddress()); err == nil {
-					if field := d.FieldForName(colName.Name.String()); field != nil {
-						colName.Type = field.Type.String()
-						return true, nil
-					}
-					return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
-				} else {
-					return false, err
-				}
-			} else {
+				idx := 0
 				for _, d := range ds.Datasets {
-					if field := d.FieldForName(colName.Name.String()); field != nil {
-						colName.Type = field.Type.String()
-						return true, nil
-					} else {
-						return false, nil
+					if d.Address.Equal(colName.Qualifier.TableAddress()) {
+						for i, f := range d.Fields {
+							if colName.Name.String() == f.Name {
+								colName.Field = f
+								colName.RowIndex = idx + i
+								return true, nil
+							}
+						}
 					}
+					idx += len(d.Fields)
+				}
+				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
+
+				// if d, err := ds.DatasetForAddress(colName.Qualifier.TableAddress()); err == nil {
+				// 	if field := d.FieldForName(colName.Name.String()); field != nil {
+				// 		colName.Type = field.Type.String()
+				// 		colName.MasterIndex = idx
+				// 		return true, nil
+				// 	}
+				// 	return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
+				// } else {
+				// 	return false, err
+				// }
+			} else {
+				idx := 0
+				for _, d := range ds.Datasets {
+					for i, f := range d.Fields {
+						if colName.Name.String() == f.Name {
+							colName.Field = f
+							colName.RowIndex = idx + i
+							return true, nil
+						}
+					}
+					idx += len(d.Fields)
 				}
 				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", colName.Name.String())
 			}

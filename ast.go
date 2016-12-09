@@ -1655,6 +1655,8 @@ type ColName struct {
 	// additional data, typically info about which
 	// table or column this node references.
 	Metadata  interface{}
+	Field     *dataset.Field
+	RowIndex  int
 	Type      string
 	Name      ColIdent
 	Qualifier TableName
@@ -1668,30 +1670,26 @@ func (node ColName) Bytes() []byte {
 
 // Eval evaluates the node against a row of data
 func (node ColName) Eval(ds *dataset.Dataset, row [][]byte) (ValExpr, error) {
-	for i, field := range ds.Fields {
-		if node.Name.String() == field.Name {
-			switch field.Type {
-			case datatype.Any:
-				return StrVal(row[i]), nil
-			case datatype.String:
-				return StrVal(row[i]), nil
-			case datatype.Float:
-				return NumVal(row[i]), nil
-			case datatype.Integer:
-				return NumVal(row[i]), nil
-			case datatype.Date:
-				return StrVal(row[i]), nil
-			case datatype.Boolean:
-				val, err := datatype.ParseBoolean(row[i])
-				return BoolVal(val), err
-			case datatype.Object:
-				// TODO
-				return StrVal(row[i]), nil
-			case datatype.Array:
-				// TODO
-				return StrVal(row[i]), nil
-			}
-		}
+	switch node.Field.Type {
+	case datatype.Any:
+		return StrVal(row[node.RowIndex]), nil
+	case datatype.String:
+		return StrVal(row[node.RowIndex]), nil
+	case datatype.Float:
+		return NumVal(row[node.RowIndex]), nil
+	case datatype.Integer:
+		return NumVal(row[node.RowIndex]), nil
+	case datatype.Date:
+		return StrVal(row[node.RowIndex]), nil
+	case datatype.Boolean:
+		val, err := datatype.ParseBoolean(row[node.RowIndex])
+		return BoolVal(val), err
+	case datatype.Object:
+		// TODO
+		return StrVal(row[node.RowIndex]), nil
+	case datatype.Array:
+		// TODO
+		return StrVal(row[node.RowIndex]), nil
 	}
 	return nil, fmt.Errorf("couldn't find a column named '%s'", node.Name)
 }
