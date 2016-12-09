@@ -83,6 +83,10 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.D
 		for i, col := range row {
 			strRow[i] = string(col)
 		}
+
+		// TODO - we can skip all subsequent rows for the highest order
+		// row once we hit here by advancing indicies to the next row in indicie index 0.
+		// see join.md
 		w.Write(strRow)
 		added++
 	}
@@ -280,10 +284,10 @@ func nodeColIndex(result *dataset.Dataset, node SelectExpr) (idx int, err error)
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
 			for _, ds := range result.Datasets {
 				for _, f := range ds.Fields {
-					idx++
 					if f.Name == colName.Name.String() {
 						return
 					}
+					idx++
 				}
 			}
 		}
