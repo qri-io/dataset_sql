@@ -9,8 +9,22 @@ import (
 	"github.com/qri-io/namespace"
 )
 
-func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.Dataset, err error) {
-	result, err = buildResultDataset(stmt, ns)
+type ExecOpt struct {
+	Format dataset.DataFormat
+}
+
+func opts(options ...func(*ExecOpt)) *ExecOpt {
+	o := &ExecOpt{
+		Format: dataset.CsvDataFormat,
+	}
+	for _, option := range options {
+		option(o)
+	}
+	return o
+}
+
+func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (result *dataset.Dataset, resultBytes []byte, err error) {
+	result, err = buildResultDataset(stmt, ns, opt)
 	if err != nil {
 		return
 	}
@@ -20,17 +34,15 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.D
 
 	proj, err := buildProjection(result, stmt.SelectExprs)
 	if err != nil {
-		return result, err
+		return result, nil, err
 	}
 
 	// Populate any ColName nodes with their type information
 	if err := populateColNames(stmt, result); err != nil {
-		return result, err
+		return result, nil, err
 	}
 
-	results := bytes.NewBuffer(nil)
-	w := csv.NewWriter(results)
-	result.Format = dataset.CsvDataFormat
+	w := newResultWriter(result)
 
 	limit := int64(0)
 	offset := int64(0)
@@ -43,7 +55,7 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.D
 
 	data, lengths, err := buildDatabase(result)
 	if err != nil {
-		return result, err
+		return result, nil, err
 	}
 
 	indicies := make([]int, len(result.Datasets))
@@ -64,7 +76,7 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.D
 		// TODO - confirm that the result dataset is the proper one to be passing in here?
 		// see if we can't remove dataset altogether by embedding all info in the ast?
 		if pass, err := stmt.Where.EvalBool(result, row); err != nil {
-			return result, err
+			return result, nil, err
 		} else if !pass {
 			continue
 		}
@@ -77,53 +89,51 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace) (result *dataset.D
 
 		// project result row
 		row = projectRow(proj, row)
-
-		// ewwwwwwwwwww
-		strRow := make([]string, len(row))
-		for i, col := range row {
-			strRow[i] = string(col)
-		}
-
-		// TODO - we can skip all subsequent rows for the highest order
-		// row once we hit here by advancing indicies to the next row in indicie index 0.
-		// see join.md
-		w.Write(strRow)
+		w.WriteRow(row)
 		added++
+
+		// we can advance the leftmost row if we make it here and there's a filtering clause.
+		// b/c at this point we have a match for the leftmost combination.
+		// TODO - I'm nervous of this because I haven't thought through multiple matches.
+		// 				so for the moment we're skipping it.
+		// if stmt.Where != nil {
+		// 	if done := jumpRow(indicies, lengths); done {
+		// 		break
+		// 	}
+		// }
 	}
 
-	w.Flush()
-	result.Data = results.Bytes()
-
+	resultBytes = w.Bytes()
 	return
 }
 
-func execUnion(node *Union, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("union statements are not yet supported")
+func execUnion(node *Union, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("union statements")
 }
 
-func execInsert(node *Insert, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("insert statements are not yet supported")
+func execInsert(node *Insert, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("insert statements")
 }
 
-func execUpdate(node *Update, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("update statements are not yet supported")
+func execUpdate(node *Update, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("update statements")
 }
 
-func execDelete(node *Delete, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("delete statements are not yet supported")
+func execDelete(node *Delete, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("delete statements")
 }
 
-func execSet(node *Set, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("set statements are not yet supported")
+func execSet(node *Set, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("set statements")
 }
 
-func execDDL(node *DDL, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
-	return nil, fmt.Errorf("ddl statements are not yet supported")
+func execDDL(node *DDL, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+	return nil, nil, NotYetImplemented("ddl statements")
 }
 
-func execOther(node *Other, ns namespace.StorableNamespace) (*dataset.Dataset, error) {
+func execOther(node *Other, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
 	// TODO - lolololol
-	return nil, fmt.Errorf("other statements are not yet supported")
+	return nil, nil, NotYetImplemented("other statements")
 }
 
 // populateColNames adds type information to ColName nodes in the ast
@@ -174,8 +184,18 @@ func projectRow(projection []int, source [][]byte) (row [][]byte) {
 }
 
 // Gather all mentioned tables, attaching them to a *dataset.Dataset
-func buildResultDataset(stmt *Select, ns namespace.StorableNamespace) (result *dataset.Dataset, err error) {
-	result = &dataset.Dataset{}
+func buildResultDataset(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (result *dataset.Dataset, err error) {
+
+	buf := NewTrackedBuffer(nil)
+	stmt.Format(buf)
+
+	result = &dataset.Dataset{
+		Format: opt.Format,
+		Query: &dataset.Query{
+			Statement: buf.String(),
+		},
+	}
+
 	for _, adr := range stmt.From.TableAddresses() {
 		if ds, e := ns.Dataset(adr); e != nil {
 			err = e
@@ -359,4 +379,60 @@ func incrIndicies(indicies, lengths []int) []int {
 	}
 
 	return indicies
+}
+
+// jumpRow advances
+func jumpRow(indicies, lengths []int) bool {
+	for i, idx := range indicies {
+		if i == 0 {
+			idx++
+			if idx == lengths[i] {
+				fmt.Println(indicies)
+				return true
+			}
+		} else if i == len(indicies)-1 {
+			idx = -1
+		} else {
+			idx = 0
+		}
+	}
+	return false
+}
+
+type resultWriter interface {
+	WriteRow([][]byte) error
+	Bytes() []byte
+}
+
+func newResultWriter(result *dataset.Dataset) resultWriter {
+	switch result.Format {
+	case dataset.CsvDataFormat:
+		buf := &bytes.Buffer{}
+		return &csvResultWriter{
+			buf:    buf,
+			Writer: csv.NewWriter(buf),
+		}
+	case dataset.JsonDataFormat:
+
+	}
+
+	return nil
+}
+
+type csvResultWriter struct {
+	buf *bytes.Buffer
+	*csv.Writer
+}
+
+func (cw *csvResultWriter) WriteRow(row [][]byte) error {
+	strRow := make([]string, len(row))
+	for i, col := range row {
+		strRow[i] = string(col)
+	}
+	return cw.Write(strRow)
+}
+
+func (cw *csvResultWriter) Bytes() []byte {
+	cw.Flush()
+	return cw.buf.Bytes()
 }

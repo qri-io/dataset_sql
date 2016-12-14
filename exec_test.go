@@ -76,7 +76,7 @@ func TestSelectFields(t *testing.T) {
 			continue
 		}
 
-		results, err := stmt.Exec(ns)
+		results, data, err := stmt.Exec(ns)
 		if err != c.expect {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.expect, err.Error())
 			continue
@@ -98,7 +98,7 @@ func TestSelectFields(t *testing.T) {
 			}
 		}
 
-		r := csv.NewReader(bytes.NewBuffer(results.Data))
+		r := csv.NewReader(bytes.NewBuffer(data))
 		records, err := r.ReadAll()
 		if err != nil {
 			t.Error(err.Error())
