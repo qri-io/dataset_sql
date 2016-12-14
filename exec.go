@@ -418,7 +418,7 @@ func newResultWriter(result *dataset.Dataset, o *ExecOpt) resultWriter {
 			Writer: csv.NewWriter(buf),
 		}
 	case dataset.JsonDataFormat:
-		return NewJsonWriter(result, true)
+		return NewJsonWriter(result, false)
 	}
 	return nil
 }
