@@ -42,7 +42,7 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 		return result, nil, err
 	}
 
-	w := newResultWriter(result)
+	w := newResultWriter(result, opt)
 
 	limit := int64(0)
 	offset := int64(0)
@@ -101,6 +101,10 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 		// 		break
 		// 	}
 		// }
+	}
+
+	if err := w.Close(); err != nil {
+		return result, nil, err
 	}
 
 	resultBytes = w.Bytes()
@@ -401,10 +405,11 @@ func jumpRow(indicies, lengths []int) bool {
 
 type resultWriter interface {
 	WriteRow([][]byte) error
+	Close() error
 	Bytes() []byte
 }
 
-func newResultWriter(result *dataset.Dataset) resultWriter {
+func newResultWriter(result *dataset.Dataset, o *ExecOpt) resultWriter {
 	switch result.Format {
 	case dataset.CsvDataFormat:
 		buf := &bytes.Buffer{}
@@ -413,9 +418,8 @@ func newResultWriter(result *dataset.Dataset) resultWriter {
 			Writer: csv.NewWriter(buf),
 		}
 	case dataset.JsonDataFormat:
-
+		return NewJsonWriter(result, true)
 	}
-
 	return nil
 }
 
@@ -432,7 +436,11 @@ func (cw *csvResultWriter) WriteRow(row [][]byte) error {
 	return cw.Write(strRow)
 }
 
-func (cw *csvResultWriter) Bytes() []byte {
+func (cw *csvResultWriter) Close() error {
 	cw.Flush()
+	return nil
+}
+
+func (cw *csvResultWriter) Bytes() []byte {
 	return cw.buf.Bytes()
 }
