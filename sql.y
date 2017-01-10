@@ -217,7 +217,11 @@ command:
 | other_statement
 
 select_statement:
-  SELECT comment_opt distinct_opt straight_join_opt select_expression_list FROM table_references where_expression_opt group_by_opt having_opt order_by_opt limitOffset_opt lock_opt
+  SELECT comment_opt distinct_opt straight_join_opt select_expression_list
+  {
+    $$ = &Select{Comments: Comments($2), Distinct: $3, Hints: $4, SelectExprs: $5}
+  }
+| SELECT comment_opt distinct_opt straight_join_opt select_expression_list FROM table_references where_expression_opt group_by_opt having_opt order_by_opt limitOffset_opt lock_opt
   {
     $$ = &Select{Comments: Comments($2), Distinct: $3, Hints: $4, SelectExprs: $5, From: $7, Where: NewWhere(WhereStr, $8), GroupBy: GroupBy($9), Having: NewWhere(HavingStr, $10), OrderBy: $11, LimitOffset: $12, Lock: $13}
   }

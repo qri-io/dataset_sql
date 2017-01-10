@@ -59,7 +59,9 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 	}
 
 	indicies := make([]int, len(result.Datasets))
-	indicies[len(indicies)-1] = -1
+	if len(indicies) > 0 {
+		indicies[len(indicies)-1] = -1
+	}
 	rowLen := masterRowLength(result)
 
 	for {
@@ -67,8 +69,11 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 			break
 		}
 
+		// generate the next master row from source datasests, bailing if we have nothing left to examine
+		// statements that don't reference any datasets need a chance to return their results
+		// so we bail if added is above zero and the slice is empty
 		row := nextRow(result, indicies, lengths, rowLen, data)
-		if row == nil {
+		if row == nil || (len(row) == 0 && added > 0) {
 			break
 		}
 
@@ -88,7 +93,10 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 		}
 
 		// project result row
-		row = projectRow(proj, row)
+		row, err = projectRow(result, stmt.SelectExprs, proj, row)
+		if err != nil {
+			return
+		}
 		w.WriteRow(row)
 		added++
 
@@ -179,10 +187,23 @@ func populateColNames(stmt *Select, ds *dataset.Dataset) error {
 	})
 }
 
-func projectRow(projection []int, source [][]byte) (row [][]byte) {
+// projectRow takes a master row & fits it to the desired result, evaluating any expressions along the way.
+func projectRow(ds *dataset.Dataset, stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
-		row[i] = source[j]
+		if j == -1 {
+			if nsr, ok := stmt[i].(*NonStarExpr); ok {
+				val, e := nsr.Expr.Eval(ds, row)
+				if e != nil {
+					return row, e
+				}
+				row[i] = val.Bytes()
+			} else {
+				return row, fmt.Errorf("select expression %d is invalid", i+1)
+			}
+		} else {
+			row[i] = source[j]
+		}
 	}
 	return
 }
@@ -347,7 +368,7 @@ func masterRowLength(ds *dataset.Dataset) (l int) {
 	return
 }
 
-// nextRow generates the next master row for a dataset
+// nextRow generates the next master row for a dataset from the source datasets
 func nextRow(ds *dataset.Dataset, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
 	if incrIndicies(indicies, lengths) == nil {
 		return nil
@@ -391,7 +412,6 @@ func jumpRow(indicies, lengths []int) bool {
 		if i == 0 {
 			idx++
 			if idx == lengths[i] {
-				fmt.Println(indicies)
 				return true
 			}
 		} else if i == len(indicies)-1 {

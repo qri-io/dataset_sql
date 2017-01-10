@@ -49,10 +49,10 @@ func (a StrVal) compare(op string, b ValExpr) (BoolVal, error) {
 
 // Numeric Comparison
 func (a NumVal) compare(op string, b ValExpr) (BoolVal, error) {
-	ai := a.Int()
-	bi := 0
+	ai := a.Num()
+	bi := float64(0)
 	if i, ok := b.(NumVal); ok {
-		bi = i.Int()
+		bi = i.Num()
 	} else {
 		return BoolVal(false), ErrInvalidComparison
 	}

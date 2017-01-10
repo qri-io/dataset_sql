@@ -5,8 +5,6 @@
 package dataset_sql
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
@@ -1549,11 +1547,21 @@ func (node NumVal) Bytes() []byte {
 	return node
 }
 
-func (node NumVal) Int() (num int) {
-	// should always be a valid number
-
-	if err := binary.Read(bytes.NewBuffer(node), binary.LittleEndian, &num); err != nil {
-		panic(err)
+func (node NumVal) Num() (num float64) {
+	s := string(node)
+	// should always be a valid number (as it came from the parser)
+	if strings.Contains(s, ".") {
+		float, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			panic(err)
+		}
+		num = float
+	} else {
+		integer, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		num = float64(integer)
 	}
 	return
 }
