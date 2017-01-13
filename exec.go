@@ -65,7 +65,7 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 	rowLen := masterRowLength(result)
 
 	for {
-		if limit > 0 && added == limit {
+		if limit > 0 && added == limit && stmt.OrderBy == nil {
 			break
 		}
 
@@ -113,6 +113,10 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 
 	if err := w.Close(); err != nil {
 		return result, nil, err
+	}
+
+	if stmt.OrderBy != nil {
+
 	}
 
 	resultBytes = w.Bytes()
