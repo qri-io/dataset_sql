@@ -24,6 +24,13 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 }
 
 func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (result *dataset.Dataset, resultBytes []byte, err error) {
+	if stmt.OrderBy != nil {
+		return nil, nil, NotYetImplemented("ORDER BY statements")
+	}
+	if stmt.Distinct != "" {
+		return nil, nil, NotYetImplemented("DISTINCT statements")
+	}
+
 	result, err = buildResultDataset(stmt, ns, opt)
 	if err != nil {
 		return

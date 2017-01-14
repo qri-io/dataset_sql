@@ -99,6 +99,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 type Statement interface {
 	iStatement()
 	Exec(namespace.StorableNamespace, ...func(*ExecOpt)) (*dataset.Dataset, []byte, error)
+	ReferencedAddresses() []dataset.Address
 	SQLNode
 }
 
@@ -117,6 +118,7 @@ type SelectStatement interface {
 	iStatement()
 	iInsertRows()
 	Exec(namespace.StorableNamespace, ...func(*ExecOpt)) (*dataset.Dataset, []byte, error)
+	ReferencedAddresses() []dataset.Address
 	SQLNode
 }
 
@@ -152,6 +154,10 @@ const (
 
 func (node *Select) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*dataset.Dataset, []byte, error) {
 	return execSelect(node, ns, opts(o...))
+}
+
+func (node *Select) ReferencedAddresses() []dataset.Address {
+	return node.From.TableAddresses()
 }
 
 // Format formats the node.
@@ -244,6 +250,10 @@ func (node *Union) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*d
 	return execUnion(node, ns, opts(o...))
 }
 
+func (node *Union) ReferencedAddresses() []dataset.Address {
+	return nil
+}
+
 // Format formats the node.
 func (node *Union) Format(buf *TrackedBuffer) {
 	buf.Myprintf("%v %s %v", node.Left, node.Type, node.Right)
@@ -273,6 +283,10 @@ type Insert struct {
 
 func (node *Insert) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*dataset.Dataset, []byte, error) {
 	return execInsert(node, ns, opts(o...))
+}
+
+func (node *Insert) ReferencedAddresses() []dataset.Address {
+	return nil
 }
 
 // Format formats the node.
@@ -321,6 +335,10 @@ func (node *Update) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*
 	return execUpdate(node, ns, opts(o...))
 }
 
+func (node *Update) ReferencedAddresses() []dataset.Address {
+	return nil
+}
+
 // Format formats the node.
 func (node *Update) Format(buf *TrackedBuffer) {
 	buf.Myprintf("update %v%v set %v%v%v%v",
@@ -357,6 +375,10 @@ func (node *Delete) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*
 	return execDelete(node, ns, opts(o...))
 }
 
+func (node *Delete) ReferencedAddresses() []dataset.Address {
+	return nil
+}
+
 // Format formats the node.
 func (node *Delete) Format(buf *TrackedBuffer) {
 	buf.Myprintf("delete %vfrom %v%v%v%v",
@@ -387,6 +409,10 @@ type Set struct {
 
 func (node *Set) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*dataset.Dataset, []byte, error) {
 	return execSet(node, ns, opts(o...))
+}
+
+func (node *Set) ReferencedAddresses() []dataset.Address {
+	return nil
 }
 
 // Format formats the node.
@@ -428,6 +454,10 @@ const (
 
 func (node *DDL) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*dataset.Dataset, []byte, error) {
 	return execDDL(node, ns, opts(o...))
+}
+
+func (node *DDL) ReferencedAddresses() []dataset.Address {
+	return nil
 }
 
 // Format formats the node.
@@ -472,6 +502,10 @@ type Other struct{}
 
 func (node *Other) Exec(ns namespace.StorableNamespace, o ...func(*ExecOpt)) (*dataset.Dataset, []byte, error) {
 	return execOther(node, ns, opts(o...))
+}
+
+func (node *Other) ReferencedAddresses() []dataset.Address {
+	return nil
 }
 
 // Format formats the node.
