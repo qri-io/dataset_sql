@@ -450,6 +450,8 @@ func newResultWriter(result *dataset.Dataset, o *ExecOpt) resultWriter {
 		}
 	case dataset.JsonDataFormat:
 		return NewJsonWriter(result, true)
+	case dataset.JsonArrayDataFormat:
+		return NewJsonWriter(result, false)
 	}
 	return nil
 }
