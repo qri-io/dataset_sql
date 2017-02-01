@@ -24,6 +24,10 @@ func TestJsonWriter(t *testing.T) {
 			[][]byte{[]byte("hello")},
 			[][]byte{[]byte("world")},
 		}, "[\n[\"hello\"],\n[\"world\"]\n]"},
+		{&dataset.Dataset{Fields: []*dataset.Field{&dataset.Field{Name: "a", Type: datatype.String}}}, false, [][][]byte{
+			[][]byte{[]byte("hello\n?")},
+			[][]byte{[]byte("world")},
+		}, "[\n[\"hello\\n?\"],\n[\"world\"]\n]"},
 	}
 
 	for i, c := range cases {

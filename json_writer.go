@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
+	"strconv"
 
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/datatype"
@@ -45,14 +46,14 @@ func (w *JsonWriter) writeObjectRow(row [][]byte) error {
 		} else {
 			switch f.Type {
 			case datatype.String:
-				ent = append(ent, []byte("\""+string(c)+"\"")...)
+				ent = append(ent, []byte(strconv.Quote(string(c)))...)
 			case datatype.Float, datatype.Integer:
 				ent = append(ent, c...)
 			case datatype.Boolean:
 				// TODO - coerce to true & false specifically
 				ent = append(ent, c...)
 			default:
-				ent = append(ent, []byte("\""+string(c)+"\"")...)
+				ent = append(ent, []byte(strconv.Quote(string(c)))...)
 			}
 		}
 
@@ -84,14 +85,14 @@ func (w *JsonWriter) writeArrayRow(row [][]byte) error {
 		} else {
 			switch f.Type {
 			case datatype.String:
-				ent = append(ent, []byte("\""+string(c)+"\"")...)
+				ent = append(ent, []byte(strconv.Quote(string(c)))...)
 			case datatype.Float, datatype.Integer:
 				ent = append(ent, c...)
 			case datatype.Boolean:
 				// TODO - coerce to true & false specifically
 				ent = append(ent, c...)
 			default:
-				ent = append(ent, []byte("\""+string(c)+"\"")...)
+				ent = append(ent, []byte(strconv.Quote(string(c)))...)
 			}
 		}
 
