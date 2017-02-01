@@ -27,9 +27,11 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
-	if stmt.Distinct != "" {
-		return nil, nil, NotYetImplemented("DISTINCT statements")
-	}
+
+	// TODO - This is a total hack to support DISTINCT statements for now
+	// in the future this needs to be rolled in as a "hasRow" method
+	// on the resultWriter interface
+	var writtenRows [][][]byte
 
 	result, err = buildResultDataset(stmt, ns, opt)
 	if err != nil {
@@ -104,6 +106,23 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 		if err != nil {
 			return
 		}
+
+		// check distinct
+		if stmt.Distinct != "" {
+			unique := true
+			for _, r := range writtenRows {
+				if rowsEqual(row, r) {
+					unique = false
+					break
+				}
+			}
+			if unique {
+				writtenRows = append(writtenRows, row)
+			} else {
+				continue
+			}
+		}
+
 		w.WriteRow(row)
 		added++
 
@@ -377,6 +396,19 @@ func masterRowLength(ds *dataset.Dataset) (l int) {
 		l += len(d.Fields)
 	}
 	return
+}
+
+// rowsEqual checks to see if two rows are identitical
+func rowsEqual(a, b [][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, ai := range a {
+		if !bytes.Equal(ai, b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // nextRow generates the next master row for a dataset from the source datasets
