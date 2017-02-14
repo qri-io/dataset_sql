@@ -313,7 +313,6 @@ func buildProjection(ds *dataset.Dataset, selectors SelectExprs) (proj []int, er
 }
 
 func buildDatabase(ds *dataset.Dataset) (data [][][][]byte, lengths []int, err error) {
-	// data = make([][][][]byte, len(ds.Datasets))
 	for _, d := range ds.Datasets {
 		dsData, err := d.AllRows()
 		if err != nil {

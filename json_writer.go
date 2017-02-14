@@ -1,3 +1,4 @@
+// TODO - move this to a separate package
 package dataset_sql
 
 import (
@@ -87,9 +88,16 @@ func (w *JsonWriter) writeArrayRow(row [][]byte) error {
 			case datatype.String:
 				ent = append(ent, []byte(strconv.Quote(string(c)))...)
 			case datatype.Float, datatype.Integer:
-				ent = append(ent, c...)
+				if len(c) == 0 {
+					ent = append(ent, []byte("0")...)
+				} else {
+					ent = append(ent, c...)
+				}
 			case datatype.Boolean:
 				// TODO - coerce to true & false specifically
+				if len(c) == 0 {
+					ent = append(ent, []byte("false")...)
+				}
 				ent = append(ent, c...)
 			default:
 				ent = append(ent, []byte(strconv.Quote(string(c)))...)
