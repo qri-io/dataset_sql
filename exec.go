@@ -5,25 +5,38 @@ import (
 	"encoding/csv"
 	"fmt"
 
+	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/namespace"
 )
 
-type ExecOpt struct {
-	Format dataset.DataFormat
+// type ExecOpt struct {
+// 	Format dataset.DataFormat
+// }
+
+// func opts(options ...func(*ExecOpt)) *ExecOpt {
+// 	o := &ExecOpt{
+// 		Format: dataset.CsvDataFormat,
+// 	}
+// 	for _, option := range options {
+// 		option(o)
+// 	}
+// 	return o
+// }
+
+func ExecQuery(q *dataset.Query) (result *dataset.Resource, err error) {
+	if q.Syntax != "sql" {
+		return fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
+	}
+
+	stmt, err := Parse(q.Statement)
+	if err != nil {
+		return nil, err
+	}
+
+	return stmt.Exec()
 }
 
-func opts(options ...func(*ExecOpt)) *ExecOpt {
-	o := &ExecOpt{
-		Format: dataset.CsvDataFormat,
-	}
-	for _, option := range options {
-		option(o)
-	}
-	return o
-}
-
-func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (result *dataset.Dataset, resultBytes []byte, err error) {
+func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *dataset.Resource, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -31,9 +44,10 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 	// TODO - This is a total hack to support DISTINCT statements for now
 	// in the future this needs to be rolled in as a "hasRow" method
 	// on the resultWriter interface
+	// left like this it'll chew up memory
 	var writtenRows [][][]byte
 
-	result, err = buildResultDataset(stmt, ns, opt)
+	result, err = buildResultResource(stmt, ns, opt)
 	if err != nil {
 		return
 	}
@@ -67,7 +81,7 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 		return result, nil, err
 	}
 
-	indicies := make([]int, len(result.Datasets))
+	indicies := make([]int, len(result.Resources))
 	if len(indicies) > 0 {
 		indicies[len(indicies)-1] = -1
 	}
@@ -149,42 +163,42 @@ func execSelect(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (res
 	return
 }
 
-func execUnion(node *Union, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (u *Union) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
 
-func execInsert(node *Insert, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (i *Insert) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
 
-func execUpdate(node *Update, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (u *Update) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
 
-func execDelete(node *Delete, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (d *Delete) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
 
-func execSet(node *Set, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (s *Set) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
 
-func execDDL(node *DDL, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
 
-func execOther(node *Other, ns namespace.StorableNamespace, opt *ExecOpt) (*dataset.Dataset, []byte, error) {
+func (o *Other) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
 	// TODO - lolololol
 	return nil, nil, NotYetImplemented("other statements")
 }
 
 // populateColNames adds type information to ColName nodes in the ast
-func populateColNames(stmt *Select, ds *dataset.Dataset) error {
+func populateColNames(stmt *Select, ds *dataset.Resource) error {
 	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
 		if colName, ok := node.(*ColName); ok && node != nil {
 			if colName.Qualifier != nil {
 				idx := 0
-				for _, d := range ds.Datasets {
+				for _, d := range ds.Resources {
 					if d.Address.Equal(colName.Qualifier.TableAddress()) {
 						for i, f := range d.Fields {
 							if colName.Name.String() == f.Name {
@@ -199,7 +213,7 @@ func populateColNames(stmt *Select, ds *dataset.Dataset) error {
 				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
 			} else {
 				idx := 0
-				for _, d := range ds.Datasets {
+				for _, d := range ds.Resources {
 					for i, f := range d.Fields {
 						if colName.Name.String() == f.Name {
 							colName.Field = f
@@ -218,7 +232,7 @@ func populateColNames(stmt *Select, ds *dataset.Dataset) error {
 }
 
 // projectRow takes a master row & fits it to the desired result, evaluating any expressions along the way.
-func projectRow(ds *dataset.Dataset, stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
+func projectRow(ds *dataset.Resource, stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
 		if j == -1 {
@@ -238,13 +252,13 @@ func projectRow(ds *dataset.Dataset, stmt SelectExprs, projection []int, source 
 	return
 }
 
-// Gather all mentioned tables, attaching them to a *dataset.Dataset
-func buildResultDataset(stmt *Select, ns namespace.StorableNamespace, opt *ExecOpt) (result *dataset.Dataset, err error) {
+// Gather all mentioned tables, attaching them to a *dataset.Resource
+func buildResultResource(stmt *Select, ns datastore.Datastore, opt *ExecOpt) (result *dataset.Resource, err error) {
 
 	buf := NewTrackedBuffer(nil)
 	stmt.Format(buf)
 
-	result = &dataset.Dataset{
+	result = &dataset.Resource{
 		Format: opt.Format,
 		Query: &dataset.Query{
 			Statement: buf.String(),
@@ -252,7 +266,7 @@ func buildResultDataset(stmt *Select, ns namespace.StorableNamespace, opt *ExecO
 	}
 
 	for _, adr := range stmt.From.TableAddresses() {
-		if ds, e := ns.Dataset(adr); e != nil {
+		if ds, e := ns.Resource(adr); e != nil {
 			err = e
 			return
 		} else {
@@ -264,18 +278,18 @@ func buildResultDataset(stmt *Select, ns namespace.StorableNamespace, opt *ExecO
 			if err != nil {
 				return result, err
 			}
-			result.Datasets = append(result.Datasets, ds)
+			result.Resources = append(result.Resources, ds)
 		}
 	}
 	populateResultFields(stmt, result)
 	return
 }
 
-func populateResultFields(stmt *Select, result *dataset.Dataset) {
+func populateResultFields(stmt *Select, result *dataset.Resource) {
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
 			name := string(star.TableName)
-			for _, ds := range result.Datasets {
+			for _, ds := range result.Resources {
 				// we add fields if the names match, or if no name is specified
 				if ds.Name == name || name == "" {
 					result.Fields = append(result.Fields, ds.Fields...)
@@ -290,7 +304,7 @@ func populateResultFields(stmt *Select, result *dataset.Dataset) {
 	}
 }
 
-func buildProjection(ds *dataset.Dataset, selectors SelectExprs) (proj []int, err error) {
+func buildProjection(ds *dataset.Resource, selectors SelectExprs) (proj []int, err error) {
 	for _, node := range selectors {
 		if isUnqualifiedStarExpr(node) {
 			return intSeries(0, subsetFieldCount(ds)), nil
@@ -312,8 +326,8 @@ func buildProjection(ds *dataset.Dataset, selectors SelectExprs) (proj []int, er
 	return
 }
 
-func buildDatabase(ds *dataset.Dataset) (data [][][][]byte, lengths []int, err error) {
-	for _, d := range ds.Datasets {
+func buildDatabase(ds *dataset.Resource) (data [][][][]byte, lengths []int, err error) {
+	for _, d := range ds.Resources {
 		dsData, err := d.AllRows()
 		if err != nil {
 			return nil, nil, err
@@ -325,9 +339,9 @@ func buildDatabase(ds *dataset.Dataset) (data [][][][]byte, lengths []int, err e
 	return
 }
 
-func findStarExprSubset(result *dataset.Dataset, node SelectExpr) (ds *dataset.Dataset, err error) {
+func findStarExprSubset(result *dataset.Resource, node SelectExpr) (ds *dataset.Resource, err error) {
 	if star, ok := node.(*StarExpr); ok && node != nil {
-		for _, d := range result.Datasets {
+		for _, d := range result.Resources {
 			if star.TableName.String() == d.Address.String() {
 				return d, nil
 			}
@@ -354,18 +368,18 @@ func isQualifiedStarExpr(node SelectExpr) bool {
 	return false
 }
 
-func subsetFieldCount(result *dataset.Dataset) (count int) {
-	for _, ds := range result.Datasets {
+func subsetFieldCount(result *dataset.Resource) (count int) {
+	for _, ds := range result.Resources {
 		count += len(ds.Fields)
 	}
 	return
 }
 
 // nodeColIndex
-func nodeColIndex(result *dataset.Dataset, node SelectExpr) (idx int, err error) {
+func nodeColIndex(result *dataset.Resource, node SelectExpr) (idx int, err error) {
 	if nse, ok := node.(*NonStarExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
-			for _, ds := range result.Datasets {
+			for _, ds := range result.Resources {
 				for _, f := range ds.Fields {
 					if f.Name == colName.Name.String() {
 						return
@@ -390,8 +404,8 @@ func intSeries(start, length int) (series []int) {
 }
 
 // masterRowLength sums all fields of a dataset's children
-func masterRowLength(ds *dataset.Dataset) (l int) {
-	for _, d := range ds.Datasets {
+func masterRowLength(ds *dataset.Resource) (l int) {
+	for _, d := range ds.Resources {
 		l += len(d.Fields)
 	}
 	return
@@ -411,13 +425,13 @@ func rowsEqual(a, b [][]byte) bool {
 }
 
 // nextRow generates the next master row for a dataset from the source datasets
-func nextRow(ds *dataset.Dataset, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
+func nextRow(ds *dataset.Resource, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
 	if incrIndicies(indicies, lengths) == nil {
 		return nil
 	} else {
 		row = make([][]byte, rowLen)
 		k := 0
-		for i := 0; i < len(ds.Datasets); i++ {
+		for i := 0; i < len(ds.Resources); i++ {
 			// fmt.Println(i, indicies[i])
 			for _, cell := range data[i][indicies[i]] {
 				row[k] = cell
@@ -471,7 +485,7 @@ type resultWriter interface {
 	Bytes() []byte
 }
 
-func newResultWriter(result *dataset.Dataset, o *ExecOpt) resultWriter {
+func newResultWriter(result *dataset.Resource, o *ExecOpt) resultWriter {
 	switch result.Format {
 	case dataset.CsvDataFormat:
 		buf := &bytes.Buffer{}

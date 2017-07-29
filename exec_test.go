@@ -3,16 +3,14 @@ package dataset_sql
 import (
 	"bytes"
 	"encoding/csv"
+	"github.com/ipfs/go-datastore"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 
-	"github.com/qri-io/namespace"
-
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/dataset/dataset_generate"
+	"github.com/qri-io/dataset/generate"
 	"github.com/qri-io/datatype"
-	"github.com/qri-io/namespace/mem"
 )
 
 type execTestCase struct {
@@ -29,7 +27,7 @@ func TestSelectFields(t *testing.T) {
 	rating := &dataset.Field{Name: "rating", Type: datatype.Float}
 	notes := &dataset.Field{Name: "notes", Type: datatype.String}
 
-	ds := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
+	ds := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
 		o.Name = "select_test"
 		o.Address = dataset.NewAddress("test.select_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -37,7 +35,7 @@ func TestSelectFields(t *testing.T) {
 		o.NumRandRecords = 9
 	})
 
-	dsTwo := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
+	dsTwo := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
 		o.Name = "select_test_two"
 		o.Address = dataset.NewAddress("test.select_test_two")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -45,7 +43,9 @@ func TestSelectFields(t *testing.T) {
 		o.NumRandRecords = 9
 	})
 
-	ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Dataset{ds, dsTwo}, nil)
+	// ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, dsTwo}, nil)
+	ns := datastore.NewMapDatastore()
+	ns.Put("test", []*dataset.Resource{ds, dsTwo})
 
 	cases := []execTestCase{
 		{"select * from test.select_test", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
@@ -119,7 +119,7 @@ func TestNullValues(t *testing.T) {
 	rating := &dataset.Field{Name: "rating", Type: datatype.Float}
 	notes := &dataset.Field{Name: "notes", Type: datatype.String}
 
-	ds := dataset_generate.RandomDataset(func(o *dataset_generate.RandomDatasetOpts) {
+	ds := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
 		o.Name = "null_values_test"
 		o.Address = dataset.NewAddress("test.null_values_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -133,7 +133,7 @@ func TestNullValues(t *testing.T) {
 		return
 	}
 
-	ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Dataset{ds, airportCodes}, nil)
+	ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, airportCodes}, nil)
 
 	runCases([]execTestCase{
 		{"select * from test.null_values_test", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
@@ -171,12 +171,12 @@ func TestNullValues(t *testing.T) {
 
 }
 
-func loadTestData(dir string) (*dataset.Dataset, error) {
+func loadTestData(dir string) (*dataset.Resource, error) {
 	dsData, err := ioutil.ReadFile(filepath.Join("test_data", dir, dataset.Filename))
 	if err != nil {
 		return nil, err
 	}
-	ds := &dataset.Dataset{}
+	ds := &dataset.Resource{}
 	if err := ds.UnmarshalJSON(dsData); err != nil {
 		return nil, err
 	}
