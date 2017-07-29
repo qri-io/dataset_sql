@@ -23,17 +23,17 @@ import (
 // 	return o
 // }
 
-func ExecQuery(q *dataset.Query) (result *dataset.Resource, err error) {
+func ExecQuery(store datastore.Datastore, q *dataset.Query) (resource *dataset.Resource, results []byte, err error) {
 	if q.Syntax != "sql" {
-		return fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
+		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
 	}
 
 	stmt, err := Parse(q.Statement)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return stmt.Exec()
+	return stmt.Exec(store, q)
 }
 
 func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *dataset.Resource, resultBytes []byte, err error) {

@@ -12,9 +12,9 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
+	"github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset_sql/deps/cistring"
 	"github.com/qri-io/dataset_sql/deps/sqltypes"
-	"github.com/qri-io/datatype"
 )
 
 // NotYetImplemented reports missing features. it'd be lovely to not need this ;)
@@ -99,7 +99,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 type Statement interface {
 	iStatement()
 	Exec(datastore.Datastore, *dataset.Query) (*dataset.Resource, []byte, error)
-	ReferencedAddresses() []dataset.Address
+	References() []string
 	SQLNode
 }
 
@@ -118,7 +118,7 @@ type SelectStatement interface {
 	iStatement()
 	iInsertRows()
 	Exec(datastore.Datastore, *dataset.Query) (*dataset.Resource, []byte, error)
-	ReferencedAddresses() []dataset.Address
+	References() []string
 	SQLNode
 }
 
@@ -152,8 +152,8 @@ const (
 	ShareModeStr = " lock in share mode"
 )
 
-func (node *Select) ReferencedAddresses() []dataset.Address {
-	return node.From.TableAddresses()
+func (node *Select) References() []string {
+	return node.From.TableVars()
 }
 
 // Format formats the node.
@@ -242,7 +242,7 @@ const (
 	UnionDistinctStr = "union distinct"
 )
 
-func (node *Union) ReferencedAddresses() []dataset.Address {
+func (node *Union) References() []string {
 	return nil
 }
 
@@ -273,7 +273,7 @@ type Insert struct {
 	OnDup    OnDup
 }
 
-func (node *Insert) ReferencedAddresses() []dataset.Address {
+func (node *Insert) References() []string {
 	return nil
 }
 
@@ -319,7 +319,7 @@ type Update struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Update) ReferencedAddresses() []dataset.Address {
+func (node *Update) References() []string {
 	return nil
 }
 
@@ -355,7 +355,7 @@ type Delete struct {
 	LimitOffset *LimitOffset
 }
 
-func (node *Delete) ReferencedAddresses() []dataset.Address {
+func (node *Delete) References() []string {
 	return nil
 }
 
@@ -387,7 +387,7 @@ type Set struct {
 	Exprs    UpdateExprs
 }
 
-func (node *Set) ReferencedAddresses() []dataset.Address {
+func (node *Set) References() []string {
 	return nil
 }
 
@@ -428,7 +428,7 @@ const (
 	RenameStr = "rename"
 )
 
-func (node *DDL) ReferencedAddresses() []dataset.Address {
+func (node *DDL) References() []string {
 	return nil
 }
 
@@ -472,7 +472,7 @@ func (node *DDL) WalkSubtree(visit Visit) error {
 // the full AST for the statement.
 type Other struct{}
 
-func (node *Other) ReferencedAddresses() []dataset.Address {
+func (node *Other) References() []string {
 	return nil
 }
 
@@ -606,28 +606,28 @@ func (node *NonStarExpr) ResultName() (name string) {
 
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
-func (node *NonStarExpr) FieldType(result *dataset.Resource) datatype.Type {
+func (node *NonStarExpr) FieldType(result *dataset.Resource) datatypes.Type {
 	switch node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
-		for _, ds := range result.Datasets {
-			for _, f := range ds.Fields {
-				// fmt.Println(name.Name.String(), f.Name)
-				if colName.Name.String() == f.Name {
-					return f.Type
-				}
+		// for _, ds := range result.Schema {
+		for _, f := range result.Schema.Fields {
+			// fmt.Println(name.Name.String(), f.Name)
+			if colName.Name.String() == f.Name {
+				return f.Type
 			}
 		}
-		return datatype.Unknown
+		// }
+		return datatypes.Unknown
 	case BoolExpr:
-		return datatype.Boolean
+		return datatypes.Boolean
 	case StrVal:
-		return datatype.String
+		return datatypes.String
 	case NumVal:
-		return datatype.Float
+		return datatypes.Float
 	}
 
-	return datatype.Unknown
+	return datatypes.Unknown
 }
 
 // Format formats the node.
@@ -809,9 +809,9 @@ func (node Columns) WalkSubtree(visit Visit) error {
 // TableExprs represents a list of table expressions.
 type TableExprs []TableExpr
 
-func (node TableExprs) TableAddresses() (names []dataset.Address) {
+func (node TableExprs) TableVars() (names []string) {
 	for _, tableExpr := range node {
-		names = append(names, tableExpr.TableAddresses()...)
+		names = append(names, tableExpr.TableVars()...)
 	}
 
 	return
@@ -839,7 +839,7 @@ func (node TableExprs) WalkSubtree(visit Visit) error {
 // TableExpr represents a table expression.
 type TableExpr interface {
 	iTableExpr()
-	TableAddresses() []dataset.Address
+	TableVars() []string
 	SQLNode
 }
 
@@ -856,8 +856,8 @@ type AliasedTableExpr struct {
 	Hints *IndexHints
 }
 
-func (node *AliasedTableExpr) TableAddresses() []dataset.Address {
-	return []dataset.Address{node.Expr.TableAddress()}
+func (node *AliasedTableExpr) TableVars() []string {
+	return []string{node.Expr.TableName()}
 }
 
 // Format formats the node.
@@ -888,7 +888,7 @@ func (node *AliasedTableExpr) WalkSubtree(visit Visit) error {
 // SimpleTableExpr represents a simple table expression.
 type SimpleTableExpr interface {
 	iSimpleTableExpr()
-	TableAddress() dataset.Address
+	TableName() string
 	SQLNode
 }
 
@@ -902,9 +902,9 @@ func (*Subquery) iSimpleTableExpr() {}
 // User is added to deal with Qri requests
 type TableName []TableIdent
 
-func (node TableName) TableAddress() dataset.Address {
+func (node TableName) TableName() string {
 	if node == nil {
-		return dataset.NewAddress("")
+		return ""
 	}
 
 	strs := make([]string, len(node))
@@ -912,7 +912,7 @@ func (node TableName) TableAddress() dataset.Address {
 		strs[i] = id.String()
 	}
 
-	return dataset.NewAddress(strs...)
+	return strings.Join(strs, ".")
 }
 
 // Format formats the node.
@@ -954,10 +954,10 @@ type ParenTableExpr struct {
 	Exprs TableExprs
 }
 
-func (node *ParenTableExpr) TableAddresses() (addrs []dataset.Address) {
+func (node *ParenTableExpr) TableVars() (addrs []string) {
 	node.WalkSubtree(func(node SQLNode) (kontinue bool, err error) {
 		if tbl, ok := node.(TableExpr); ok && node != nil {
-			addrs = append(addrs, tbl.TableAddresses()...)
+			addrs = append(addrs, tbl.TableVars()...)
 		}
 		return
 	})
@@ -988,8 +988,8 @@ type JoinTableExpr struct {
 	On        BoolExpr
 }
 
-func (node *JoinTableExpr) TableAddresses() (adrs []dataset.Address) {
-	return append(node.LeftExpr.TableAddresses(), node.RightExpr.TableAddresses()...)
+func (node *JoinTableExpr) TableVars() (adrs []string) {
+	return append(node.LeftExpr.TableVars(), node.RightExpr.TableVars()...)
 }
 
 // JoinTableExpr.Join
@@ -1684,23 +1684,23 @@ func (node ColName) Bytes() []byte {
 // Eval evaluates the node against a row of data
 func (node ColName) Eval(ds *dataset.Resource, row [][]byte) (ValExpr, error) {
 	switch node.Field.Type {
-	case datatype.Any:
+	case datatypes.Any:
 		return StrVal(row[node.RowIndex]), nil
-	case datatype.String:
+	case datatypes.String:
 		return StrVal(row[node.RowIndex]), nil
-	case datatype.Float:
+	case datatypes.Float:
 		return NumVal(row[node.RowIndex]), nil
-	case datatype.Integer:
+	case datatypes.Integer:
 		return NumVal(row[node.RowIndex]), nil
-	case datatype.Date:
+	case datatypes.Date:
 		return StrVal(row[node.RowIndex]), nil
-	case datatype.Boolean:
-		val, err := datatype.ParseBoolean(row[node.RowIndex])
+	case datatypes.Boolean:
+		val, err := datatypes.ParseBoolean(row[node.RowIndex])
 		return BoolVal(val), err
-	case datatype.Object:
+	case datatypes.Object:
 		// TODO
 		return StrVal(row[node.RowIndex]), nil
-	case datatype.Array:
+	case datatypes.Array:
 		// TODO
 		return StrVal(row[node.RowIndex]), nil
 	}
@@ -1829,9 +1829,9 @@ func (node *Subquery) Bytes() []byte {
 	return nil
 }
 
-func (node *Subquery) TableAddress() dataset.Address {
+func (node *Subquery) TableName() string {
 	// TODO - um, wut?
-	return dataset.NewAddress("")
+	return ""
 }
 
 func (node *Subquery) Eval(ds *dataset.Resource, row [][]byte) (exp ValExpr, err error) {

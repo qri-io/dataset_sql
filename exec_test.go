@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/dataset/generate"
 	"github.com/qri-io/datatype"
 )
 
@@ -190,7 +189,7 @@ func loadTestData(dir string) (*dataset.Resource, error) {
 	return ds, nil
 }
 
-func runCases(cases []execTestCase, ns namespace.StorableNamespace, t *testing.T) {
+func runCases(cases []execTestCase, store datastore.Datastore, t *testing.T) {
 	for i, c := range cases {
 		stmt, err := Parse(c.statement)
 		if err != nil {
@@ -198,7 +197,7 @@ func runCases(cases []execTestCase, ns namespace.StorableNamespace, t *testing.T
 			continue
 		}
 
-		results, data, err := stmt.Exec(ns)
+		results, data, err := stmt.Exec(store)
 		if err != c.expect {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.expect, err.Error())
 			continue
