@@ -36,7 +36,7 @@ func ExecQuery(store datastore.Datastore, q *dataset.Query) (resource *dataset.R
 	return stmt.Exec(store, q)
 }
 
-func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *dataset.Resource, resultBytes []byte, err error) {
+func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *dataset.Resource, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -47,7 +47,7 @@ func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *data
 	// left like this it'll chew up memory
 	var writtenRows [][][]byte
 
-	result, err = buildResultResource(stmt, ns, opt)
+	from, result, err := buildResultResource(stmt, store, q)
 	if err != nil {
 		return
 	}
@@ -65,7 +65,7 @@ func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *data
 		return result, nil, err
 	}
 
-	w := newResultWriter(result, opt)
+	w := newResultWriter(result)
 
 	limit := int64(0)
 	offset := int64(0)
@@ -81,7 +81,7 @@ func (s *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *data
 		return result, nil, err
 	}
 
-	indicies := make([]int, len(result.Resources))
+	indicies := make([]int, len(from))
 	if len(indicies) > 0 {
 		indicies[len(indicies)-1] = -1
 	}
@@ -252,33 +252,59 @@ func projectRow(ds *dataset.Resource, stmt SelectExprs, projection []int, source
 	return
 }
 
+type ResourceData struct {
+	Resource *dataset.Resource
+	Data     []byte
+}
+
 // Gather all mentioned tables, attaching them to a *dataset.Resource
-func buildResultResource(stmt *Select, ns datastore.Datastore, opt *ExecOpt) (result *dataset.Resource, err error) {
+func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Query) (from map[string]*ResourceData, result *dataset.Resource, err error) {
 
 	buf := NewTrackedBuffer(nil)
 	stmt.Format(buf)
 
 	result = &dataset.Resource{
-		Format: opt.Format,
-		Query: &dataset.Query{
-			Statement: buf.String(),
-		},
+		// Format: q.Format,
+		// Query: &dataset.Query{
+		// 	Statement: buf.String(),
+		// },
+		Schema: &dataset.Schema{},
 	}
 
-	for _, adr := range stmt.From.TableAddresses() {
-		if ds, e := ns.Resource(adr); e != nil {
+	from = map[string]*ResourceData{}
+
+	for i, name := range stmt.From.TableNames() {
+		path, ok := q.Resources[name]
+		if !ok {
+			err = fmt.Errorf("missing resource reference: %s", name)
+			return
+		}
+
+		if r, e := store.Get(path); e != nil {
 			err = e
 			return
 		} else {
-			store, err := ns.Store(ds.Address)
+			resource, err := dataset.UmarshalResource(r)
 			if err != nil {
-				return result, err
+				err = fmt.Errorf("not a valid resource path: %s", path.String())
 			}
-			ds.Data, err = ds.FetchBytes(store)
+
+			di, err := store.Get(resource.Path)
 			if err != nil {
-				return result, err
+				err = fmt.Errorf("error fetching data for resource: %s path: %s: %s", name, resource.Path.String(), err)
+				return
 			}
-			result.Resources = append(result.Resources, ds)
+
+			data, ok := di.([]byte)
+			if !ok {
+				err = fmt.Errorf("data isn't a byte slic for resource: %s path: %s", name, resource.Path.String(), err)
+				return
+			}
+
+			from[name] = &ResourceData{
+				Resource: resource,
+				Data:     data,
+			}
 		}
 	}
 	populateResultFields(stmt, result)
@@ -485,7 +511,7 @@ type resultWriter interface {
 	Bytes() []byte
 }
 
-func newResultWriter(result *dataset.Resource, o *ExecOpt) resultWriter {
+func newResultWriter(result *dataset.Resource) resultWriter {
 	switch result.Format {
 	case dataset.CsvDataFormat:
 		buf := &bytes.Buffer{}

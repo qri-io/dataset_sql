@@ -153,7 +153,7 @@ const (
 )
 
 func (node *Select) References() []string {
-	return node.From.TableVars()
+	return node.From.TableNames()
 }
 
 // Format formats the node.
@@ -809,9 +809,9 @@ func (node Columns) WalkSubtree(visit Visit) error {
 // TableExprs represents a list of table expressions.
 type TableExprs []TableExpr
 
-func (node TableExprs) TableVars() (names []string) {
+func (node TableExprs) TableNames() (names []string) {
 	for _, tableExpr := range node {
-		names = append(names, tableExpr.TableVars()...)
+		names = append(names, tableExpr.TableNames()...)
 	}
 
 	return
@@ -839,7 +839,7 @@ func (node TableExprs) WalkSubtree(visit Visit) error {
 // TableExpr represents a table expression.
 type TableExpr interface {
 	iTableExpr()
-	TableVars() []string
+	TableNames() []string
 	SQLNode
 }
 
@@ -856,7 +856,7 @@ type AliasedTableExpr struct {
 	Hints *IndexHints
 }
 
-func (node *AliasedTableExpr) TableVars() []string {
+func (node *AliasedTableExpr) TableNames() []string {
 	return []string{node.Expr.TableName()}
 }
 
@@ -954,10 +954,10 @@ type ParenTableExpr struct {
 	Exprs TableExprs
 }
 
-func (node *ParenTableExpr) TableVars() (addrs []string) {
+func (node *ParenTableExpr) TableNames() (addrs []string) {
 	node.WalkSubtree(func(node SQLNode) (kontinue bool, err error) {
 		if tbl, ok := node.(TableExpr); ok && node != nil {
-			addrs = append(addrs, tbl.TableVars()...)
+			addrs = append(addrs, tbl.TableNames()...)
 		}
 		return
 	})
@@ -988,8 +988,8 @@ type JoinTableExpr struct {
 	On        BoolExpr
 }
 
-func (node *JoinTableExpr) TableVars() (adrs []string) {
-	return append(node.LeftExpr.TableVars(), node.RightExpr.TableVars()...)
+func (node *JoinTableExpr) TableNames() (adrs []string) {
+	return append(node.LeftExpr.TableNames(), node.RightExpr.TableNames()...)
 }
 
 // JoinTableExpr.Join
