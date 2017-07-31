@@ -276,7 +276,7 @@ func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Que
 
 	from = map[string]*ResourceData{}
 
-	for i, name := range stmt.From.TableNames() {
+	for _, name := range stmt.From.TableNames() {
 		path, ok := q.Resources[name]
 		if !ok {
 			err = fmt.Errorf("missing resource reference: %s", name)
@@ -421,7 +421,7 @@ func fromFieldCount(from map[string]*ResourceData) (count int) {
 func nodeColIndex(node SelectExpr, from map[string]*ResourceData) (idx int, err error) {
 	if nse, ok := node.(*NonStarExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
-			for tableName, resourceData := range from {
+			for _, resourceData := range from {
 				for _, f := range resourceData.Resource.Schema.Fields {
 					if f.Name == colName.Name.String() {
 						return
