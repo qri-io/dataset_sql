@@ -98,7 +98,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(datastore.Datastore, *dataset.Query) (*dataset.Resource, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Resource, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -117,7 +117,7 @@ type SelectStatement interface {
 	iSelectStatement()
 	iStatement()
 	iInsertRows()
-	Exec(datastore.Datastore, *dataset.Query) (*dataset.Resource, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Resource, []byte, error)
 	References() []string
 	SQLNode
 }

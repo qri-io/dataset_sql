@@ -10,21 +10,29 @@ import (
 	"github.com/qri-io/dataset/load"
 )
 
-// type ExecOpt struct {
-// 	Format dataset.DataFormat
-// }
+type ExecOpt struct {
+	Format dataset.DataFormat
+}
 
-// func opts(options ...func(*ExecOpt)) *ExecOpt {
-// 	o := &ExecOpt{
-// 		Format: dataset.CsvDataFormat,
-// 	}
-// 	for _, option := range options {
-// 		option(o)
-// 	}
-// 	return o
-// }
+func opts(options ...func(*ExecOpt)) *ExecOpt {
+	o := &ExecOpt{
+		Format: dataset.CsvDataFormat,
+	}
+	for _, option := range options {
+		option(o)
+	}
+	return o
+}
 
-func ExecQuery(store datastore.Datastore, q *dataset.Query) (resource *dataset.Resource, results []byte, err error) {
+func ExecQuery(store datastore.Datastore, q *dataset.Query, options ...func(o *ExecOpt)) (resource *dataset.Resource, results []byte, err error) {
+	opts := &ExecOpt{
+		Format: dataset.CsvDataFormat,
+	}
+
+	for _, option := range options {
+		option(opts)
+	}
+
 	if q.Syntax != "sql" {
 		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
 	}
@@ -34,10 +42,10 @@ func ExecQuery(store datastore.Datastore, q *dataset.Query) (resource *dataset.R
 		return nil, nil, err
 	}
 
-	return stmt.Exec(store, q)
+	return stmt.Exec(store, q, opts)
 }
 
-func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *dataset.Resource, resultBytes []byte, err error) {
+func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (result *dataset.Resource, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -48,7 +56,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 	// left like this it'll chew up memory
 	var writtenRows [][][]byte
 
-	from, result, err := buildResultResource(stmt, store, q)
+	from, result, err := buildResultResource(stmt, store, q, opts)
 	if err != nil {
 		return
 	}
@@ -166,31 +174,31 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 	return
 }
 
-func (u *Union) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (u *Union) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
 
-func (i *Insert) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (i *Insert) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
 
-func (u *Update) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (u *Update) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
 
-func (d *Delete) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (d *Delete) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
 
-func (s *Set) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (s *Set) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
 
-func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
 
-func (o *Other) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Resource, []byte, error) {
+func (o *Other) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	// TODO - lolololol
 	return nil, nil, NotYetImplemented("other statements")
 }
@@ -261,13 +269,13 @@ type ResourceData struct {
 }
 
 // Gather all mentioned tables, attaching them to a *dataset.Resource
-func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Query) (from map[string]*ResourceData, result *dataset.Resource, err error) {
+func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*ResourceData, result *dataset.Resource, err error) {
 
 	buf := NewTrackedBuffer(nil)
 	stmt.Format(buf)
 
 	result = &dataset.Resource{
-		// Format: q.Format,
+		Format: opts.Format,
 		// Query: &dataset.Query{
 		// 	Statement: buf.String(),
 		// },

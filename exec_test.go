@@ -28,6 +28,7 @@ func TestSelectFields(t *testing.T) {
 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
 	a := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
@@ -38,6 +39,7 @@ func TestSelectFields(t *testing.T) {
 	a.Path = datastore.NewKey("aData")
 
 	b := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
@@ -205,6 +207,7 @@ func TestSelectFields(t *testing.T) {
 func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 		q := &dataset.Query{
+			Syntax:    "sql",
 			Resources: ns,
 			Statement: c.statement,
 		}
@@ -215,7 +218,9 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 		// 	continue
 		// }
 
-		results, data, err := ExecQuery(store, q)
+		results, data, err := ExecQuery(store, q, func(o *ExecOpt) {
+			o.Format = dataset.CsvDataFormat
+		})
 		if err != c.expect {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.expect, err.Error())
 			continue
