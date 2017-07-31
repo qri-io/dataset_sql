@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
+	"github.com/qri-io/dataset/load"
 )
 
 // type ExecOpt struct {
@@ -52,16 +53,18 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 		return
 	}
 
+	generateResultSchema(stmt, from, result)
+
 	// TODO... Sort each table by select sort criteria here?
 	// TODO - column ambiguity check
 
-	proj, err := buildProjection(result, stmt.SelectExprs)
+	proj, err := buildProjection(stmt.SelectExprs, from)
 	if err != nil {
 		return result, nil, err
 	}
 
 	// Populate any ColName nodes with their type information
-	if err := populateColNames(stmt, result); err != nil {
+	if err := populateColNames(stmt, from); err != nil {
 		return result, nil, err
 	}
 
@@ -76,7 +79,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 		offset = stmt.LimitOffset.GetOffset()
 	}
 
-	data, lengths, err := buildDatabase(result)
+	data, lengths, err := buildDatabase(store, from, result)
 	if err != nil {
 		return result, nil, err
 	}
@@ -85,7 +88,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 	if len(indicies) > 0 {
 		indicies[len(indicies)-1] = -1
 	}
-	rowLen := masterRowLength(result)
+	rowLen := masterRowLength(from)
 
 	for {
 		if limit > 0 && added == limit && stmt.OrderBy == nil {
@@ -95,7 +98,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query) (result *d
 		// generate the next master row from source datasests, bailing if we have nothing left to examine
 		// statements that don't reference any datasets need a chance to return their results
 		// so we bail if added is above zero and the slice is empty
-		row := nextRow(result, indicies, lengths, rowLen, data)
+		row := nextRow(len(from), indicies, lengths, rowLen, data)
 		if row == nil || (len(row) == 0 && added > 0) {
 			break
 		}
@@ -193,14 +196,14 @@ func (o *Other) Exec(store datastore.Datastore, q *dataset.Query) (*dataset.Reso
 }
 
 // populateColNames adds type information to ColName nodes in the ast
-func populateColNames(stmt *Select, ds *dataset.Resource) error {
+func populateColNames(stmt *Select, from map[string]*ResourceData) error {
 	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
 		if colName, ok := node.(*ColName); ok && node != nil {
 			if colName.Qualifier != nil {
 				idx := 0
-				for _, d := range ds.Resources {
-					if d.Address.Equal(colName.Qualifier.TableAddress()) {
-						for i, f := range d.Fields {
+				for tableName, resourceData := range from {
+					if colName.Qualifier.TableName() == tableName {
+						for i, f := range resourceData.Resource.Schema.Fields {
 							if colName.Name.String() == f.Name {
 								colName.Field = f
 								colName.RowIndex = idx + i
@@ -208,20 +211,20 @@ func populateColNames(stmt *Select, ds *dataset.Resource) error {
 							}
 						}
 					}
-					idx += len(d.Fields)
+					idx += len(resourceData.Resource.Schema.Fields)
 				}
-				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableAddress().String())
+				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableName())
 			} else {
 				idx := 0
-				for _, d := range ds.Resources {
-					for i, f := range d.Fields {
+				for _, resourceData := range from {
+					for i, f := range resourceData.Resource.Schema.Fields {
 						if colName.Name.String() == f.Name {
 							colName.Field = f
 							colName.RowIndex = idx + i
 							return true, nil
 						}
 					}
-					idx += len(d.Fields)
+					idx += len(resourceData.Resource.Schema.Fields)
 				}
 				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", colName.Name.String())
 			}
@@ -284,20 +287,21 @@ func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Que
 			err = e
 			return
 		} else {
-			resource, err := dataset.UmarshalResource(r)
-			if err != nil {
+			resource, e := dataset.UnmarshalResource(r)
+			if e != nil {
 				err = fmt.Errorf("not a valid resource path: %s", path.String())
+				return
 			}
 
-			di, err := store.Get(resource.Path)
-			if err != nil {
-				err = fmt.Errorf("error fetching data for resource: %s path: %s: %s", name, resource.Path.String(), err)
+			di, e := store.Get(resource.Path)
+			if e != nil {
+				err = fmt.Errorf("error fetching data for resource: %s path: %s: %s", name, resource.Path.String(), e.Error())
 				return
 			}
 
 			data, ok := di.([]byte)
 			if !ok {
-				err = fmt.Errorf("data isn't a byte slic for resource: %s path: %s", name, resource.Path.String(), err)
+				err = fmt.Errorf("data isn't a byte slic for resource: %s path: %s", name, resource.Path.String())
 				return
 			}
 
@@ -307,22 +311,26 @@ func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Que
 			}
 		}
 	}
-	populateResultFields(stmt, result)
 	return
 }
 
-func populateResultFields(stmt *Select, result *dataset.Resource) {
+// generateResultSchema determines the schema of the query & adds it to result
+func generateResultSchema(stmt *Select, from map[string]*ResourceData, result *dataset.Resource) {
+	if result.Schema == nil {
+		result.Schema = &dataset.Schema{}
+	}
+
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
 			name := string(star.TableName)
-			for _, ds := range result.Resources {
+			for tableName, resourceData := range from {
 				// we add fields if the names match, or if no name is specified
-				if ds.Name == name || name == "" {
-					result.Fields = append(result.Fields, ds.Fields...)
+				if tableName == name || name == "" {
+					result.Schema.Fields = append(result.Schema.Fields, resourceData.Resource.Schema.Fields...)
 				}
 			}
 		} else if expr, ok := node.(*NonStarExpr); ok && node != nil {
-			result.Fields = append(result.Fields, &dataset.Field{
+			result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
 				Name: expr.ResultName(),
 				Type: expr.FieldType(result),
 			})
@@ -330,18 +338,20 @@ func populateResultFields(stmt *Select, result *dataset.Resource) {
 	}
 }
 
-func buildProjection(ds *dataset.Resource, selectors SelectExprs) (proj []int, err error) {
+// buildProjection constructs the intermediate "projection" table that the sql query must
+// generate in order to select form
+func buildProjection(selectors SelectExprs, from map[string]*ResourceData) (proj []int, err error) {
 	for _, node := range selectors {
 		if isUnqualifiedStarExpr(node) {
-			return intSeries(0, subsetFieldCount(ds)), nil
+			return intSeries(0, fromFieldCount(from)), nil
 		} else if isQualifiedStarExpr(node) {
-			ds, e := findStarExprSubset(ds, node)
+			r, e := findStarExprResource(node, from)
 			if e != nil {
 				return proj, e
 			}
-			proj = append(proj, intSeries(len(proj), len(ds.Fields))...)
+			proj = append(proj, intSeries(len(proj), len(r.Schema.Fields))...)
 		} else {
-			i, e := nodeColIndex(ds, node)
+			i, e := nodeColIndex(node, from)
 			if e != nil {
 				return proj, e
 			}
@@ -352,9 +362,9 @@ func buildProjection(ds *dataset.Resource, selectors SelectExprs) (proj []int, e
 	return
 }
 
-func buildDatabase(ds *dataset.Resource) (data [][][][]byte, lengths []int, err error) {
-	for _, d := range ds.Resources {
-		dsData, err := d.AllRows()
+func buildDatabase(store datastore.Datastore, from map[string]*ResourceData, ds *dataset.Resource) (data [][][][]byte, lengths []int, err error) {
+	for _, resourceData := range from {
+		dsData, err := load.AllRows(store, resourceData.Resource)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -365,15 +375,20 @@ func buildDatabase(ds *dataset.Resource) (data [][][][]byte, lengths []int, err 
 	return
 }
 
-func findStarExprSubset(result *dataset.Resource, node SelectExpr) (ds *dataset.Resource, err error) {
+// findStarExprResource finds the resource of a table-qualified star expression eg: tablename.*
+func findStarExprResource(node SelectExpr, from map[string]*ResourceData) (r *dataset.Resource, err error) {
 	if star, ok := node.(*StarExpr); ok && node != nil {
-		for _, d := range result.Resources {
-			if star.TableName.String() == d.Address.String() {
-				return d, nil
+		for tableName, resourceData := range from {
+			if star.TableName.String() == tableName {
+				return resourceData.Resource, nil
 			}
 		}
+		return nil, fmt.Errorf("couldn't find resource for table name: %s", star.TableName.String())
 	}
-	return
+	// should never happen.
+	buf := NewTrackedBuffer(nil)
+	node.Format(buf)
+	return nil, fmt.Errorf("attempt to find resource for non-star select expression: %s", buf.String())
 }
 
 func isUnqualifiedStarExpr(node SelectExpr) bool {
@@ -394,19 +409,20 @@ func isQualifiedStarExpr(node SelectExpr) bool {
 	return false
 }
 
-func subsetFieldCount(result *dataset.Resource) (count int) {
-	for _, ds := range result.Resources {
-		count += len(ds.Fields)
+// fromFieldCount totals all fields in
+func fromFieldCount(from map[string]*ResourceData) (count int) {
+	for _, resourceData := range from {
+		count += len(resourceData.Resource.Schema.Fields)
 	}
 	return
 }
 
-// nodeColIndex
-func nodeColIndex(result *dataset.Resource, node SelectExpr) (idx int, err error) {
+// nodeColIndex finds the column index for a given node
+func nodeColIndex(node SelectExpr, from map[string]*ResourceData) (idx int, err error) {
 	if nse, ok := node.(*NonStarExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
-			for _, ds := range result.Resources {
-				for _, f := range ds.Fields {
+			for tableName, resourceData := range from {
+				for _, f := range resourceData.Resource.Schema.Fields {
 					if f.Name == colName.Name.String() {
 						return
 					}
@@ -430,9 +446,9 @@ func intSeries(start, length int) (series []int) {
 }
 
 // masterRowLength sums all fields of a dataset's children
-func masterRowLength(ds *dataset.Resource) (l int) {
-	for _, d := range ds.Resources {
-		l += len(d.Fields)
+func masterRowLength(from map[string]*ResourceData) (l int) {
+	for _, resourceData := range from {
+		l += len(resourceData.Resource.Schema.Fields)
 	}
 	return
 }
@@ -451,13 +467,13 @@ func rowsEqual(a, b [][]byte) bool {
 }
 
 // nextRow generates the next master row for a dataset from the source datasets
-func nextRow(ds *dataset.Resource, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
+func nextRow(numResources int, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
 	if incrIndicies(indicies, lengths) == nil {
 		return nil
 	} else {
 		row = make([][]byte, rowLen)
 		k := 0
-		for i := 0; i < len(ds.Resources); i++ {
+		for i := 0; i < numResources; i++ {
 			// fmt.Println(i, indicies[i])
 			for _, cell := range data[i][indicies[i]] {
 				row[k] = cell

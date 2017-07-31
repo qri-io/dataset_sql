@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/datatype"
+	"github.com/qri-io/dataset/datatypes"
+	"github.com/qri-io/dataset/generate"
 )
 
 type execTestCase struct {
@@ -20,13 +21,13 @@ type execTestCase struct {
 }
 
 func TestSelectFields(t *testing.T) {
-	created := &dataset.Field{Name: "created", Type: datatype.Date}
-	title := &dataset.Field{Name: "title", Type: datatype.String}
-	views := &dataset.Field{Name: "views", Type: datatype.Integer}
-	rating := &dataset.Field{Name: "rating", Type: datatype.Float}
-	notes := &dataset.Field{Name: "notes", Type: datatype.String}
+	created := &dataset.Field{Name: "created", Type: datatypes.Date}
+	title := &dataset.Field{Name: "title", Type: datatypes.String}
+	views := &dataset.Field{Name: "views", Type: datatypes.Integer}
+	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
+	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-	ds := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
+	ds := generate.RandomResource(func(o *generate.RandomResourceOpts) {
 		o.Name = "select_test"
 		o.Address = dataset.NewAddress("test.select_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -34,7 +35,7 @@ func TestSelectFields(t *testing.T) {
 		o.NumRandRecords = 9
 	})
 
-	dsTwo := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
+	dsTwo := generate.RandomResource(func(o *generate.RandomResourceOpts) {
 		o.Name = "select_test_two"
 		o.Address = dataset.NewAddress("test.select_test_two")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -57,7 +58,7 @@ func TestSelectFields(t *testing.T) {
 		{"select * from test.select_test, test.select_test_two", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
 		{"select * from test.select_test, test.select_test_two where test.select_test->notes = test.select_test_two->notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
 		// {"select * from test.select_test as a, test.select_test_two as b where a->created = b->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 10},
-		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatype.Integer}}, 1},
+		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
 	runCases(cases, ns, t)
@@ -112,13 +113,13 @@ func TestSelectFields(t *testing.T) {
 }
 
 func TestNullValues(t *testing.T) {
-	created := &dataset.Field{Name: "created", Type: datatype.Date}
-	title := &dataset.Field{Name: "title", Type: datatype.String}
-	views := &dataset.Field{Name: "views", Type: datatype.Integer}
-	rating := &dataset.Field{Name: "rating", Type: datatype.Float}
-	notes := &dataset.Field{Name: "notes", Type: datatype.String}
+	created := &dataset.Field{Name: "created", Type: datatypes.Date}
+	title := &dataset.Field{Name: "title", Type: datatypes.String}
+	views := &dataset.Field{Name: "views", Type: datatypes.Integer}
+	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
+	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-	ds := dataset_generate.RandomResource(func(o *dataset_generate.RandomResourceOpts) {
+	ds := generate.RandomResource(func(o *generate.RandomResourceOpts) {
 		o.Name = "null_values_test"
 		o.Address = dataset.NewAddress("test.null_values_test")
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
