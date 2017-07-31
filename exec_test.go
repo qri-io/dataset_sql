@@ -60,7 +60,7 @@ func TestSelectFields(t *testing.T) {
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created, title, views, rating, notes from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select a->created from a limit 5", nil, []*dataset.Field{created}, 5},
-		{"select a.created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select a->created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		{"select * from a where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from b where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
@@ -234,11 +234,11 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 		for j, f := range c.fields {
 			if results.Schema.Fields[j].Name != f.Name {
 				t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, results.Schema.Fields[j].Name)
-				continue
+				break
 			}
 			if results.Schema.Fields[j].Type != f.Type {
 				t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, results.Schema.Fields[j].Type)
-				continue
+				break
 			}
 		}
 

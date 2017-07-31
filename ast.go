@@ -606,18 +606,18 @@ func (node *NonStarExpr) ResultName() (name string) {
 
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
-func (node *NonStarExpr) FieldType(result *dataset.Resource) datatypes.Type {
+func (node *NonStarExpr) FieldType(from map[string]*ResourceData) datatypes.Type {
 	switch node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
-		// for _, ds := range result.Schema {
-		for _, f := range result.Schema.Fields {
-			// fmt.Println(name.Name.String(), f.Name)
-			if colName.Name.String() == f.Name {
-				return f.Type
+		for _, resourceData := range from {
+			for _, f := range resourceData.Resource.Schema.Fields {
+				// fmt.Println(name.Name.String(), f.Name)
+				if colName.Name.String() == f.Name {
+					return f.Type
+				}
 			}
 		}
-		// }
 		return datatypes.Unknown
 	case BoolExpr:
 		return datatypes.Boolean

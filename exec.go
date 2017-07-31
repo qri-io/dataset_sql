@@ -340,7 +340,7 @@ func generateResultSchema(stmt *Select, from map[string]*ResourceData, result *d
 		} else if expr, ok := node.(*NonStarExpr); ok && node != nil {
 			result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
 				Name: expr.ResultName(),
-				Type: expr.FieldType(result),
+				Type: expr.FieldType(from),
 			})
 		}
 	}
