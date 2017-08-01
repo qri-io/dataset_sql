@@ -6,17 +6,17 @@ import (
 	"strconv"
 
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/datatype"
+	"github.com/qri-io/dataset/datatypes"
 )
 
 type JsonWriter struct {
 	writeObjects bool
 	rowsWritten  int
-	ds           *dataset.Dataset
+	ds           *dataset.Resource
 	buf          *bytes.Buffer
 }
 
-func NewJsonWriter(ds *dataset.Dataset, writeObjects bool) *JsonWriter {
+func NewJsonWriter(ds *dataset.Resource, writeObjects bool) *JsonWriter {
 	return &JsonWriter{
 		writeObjects: writeObjects,
 		ds:           ds,
@@ -37,7 +37,7 @@ func (w *JsonWriter) writeObjectRow(row [][]byte) error {
 		enc = enc[1:]
 	}
 	for i, c := range row {
-		f := w.ds.Fields[i]
+		f := w.ds.Schema.Fields[i]
 		ent := []byte(",\"" + f.Name + "\":")
 		if i == 0 {
 			ent = ent[1:]
@@ -46,11 +46,11 @@ func (w *JsonWriter) writeObjectRow(row [][]byte) error {
 			ent = append(ent, []byte("null")...)
 		} else {
 			switch f.Type {
-			case datatype.String:
+			case datatypes.String:
 				ent = append(ent, []byte(strconv.Quote(string(c)))...)
-			case datatype.Float, datatype.Integer:
+			case datatypes.Float, datatypes.Integer:
 				ent = append(ent, c...)
-			case datatype.Boolean:
+			case datatypes.Boolean:
 				// TODO - coerce to true & false specifically
 				ent = append(ent, c...)
 			default:
@@ -76,7 +76,7 @@ func (w *JsonWriter) writeArrayRow(row [][]byte) error {
 		enc = enc[1:]
 	}
 	for i, c := range row {
-		f := w.ds.Fields[i]
+		f := w.ds.Schema.Fields[i]
 		ent := []byte(",")
 		if i == 0 {
 			ent = ent[1:]
@@ -85,15 +85,15 @@ func (w *JsonWriter) writeArrayRow(row [][]byte) error {
 			ent = append(ent, []byte("null")...)
 		} else {
 			switch f.Type {
-			case datatype.String:
+			case datatypes.String:
 				ent = append(ent, []byte(strconv.Quote(string(c)))...)
-			case datatype.Float, datatype.Integer:
+			case datatypes.Float, datatypes.Integer:
 				if len(c) == 0 {
 					ent = append(ent, []byte("0")...)
 				} else {
 					ent = append(ent, c...)
 				}
-			case datatype.Boolean:
+			case datatypes.Boolean:
 				// TODO - coerce to true & false specifically
 				if len(c) == 0 {
 					ent = append(ent, []byte("false")...)

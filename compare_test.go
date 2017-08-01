@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"fmt"
+	"github.com/qri-io/dataset"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,7 +21,7 @@ func runComparisons(t *testing.T, cases []compare) {
 			t.Errorf("case %d unexpected parse error: %s", i, err.Error())
 			continue
 		}
-		_, res, err := stmt.Exec(nil)
+		_, res, err := stmt.Exec(nil, nil, &ExecOpt{Format: dataset.CsvDataFormat})
 		if c.err != err {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.err, err)
 			continue
