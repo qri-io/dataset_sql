@@ -15,6 +15,7 @@ import (
 	"github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset_sql/deps/cistring"
 	"github.com/qri-io/dataset_sql/deps/sqltypes"
+	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 )
 
 // NotYetImplemented reports missing features. it'd be lovely to not need this ;)
