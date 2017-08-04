@@ -15,7 +15,6 @@ import (
 	"github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset_sql/deps/cistring"
 	"github.com/qri-io/dataset_sql/deps/sqltypes"
-	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 )
 
 // NotYetImplemented reports missing features. it'd be lovely to not need this ;)
@@ -857,6 +856,14 @@ type AliasedTableExpr struct {
 	Hints *IndexHints
 }
 
+func (node *AliasedTableExpr) TableName() string {
+	return node.Expr.TableName()
+}
+
+// func (node *AliasedTableExpr) SetTableName(name string) {
+// 	node.Expr
+// }
+
 func (node *AliasedTableExpr) TableNames() []string {
 	return []string{node.Expr.TableName()}
 }
@@ -890,6 +897,7 @@ func (node *AliasedTableExpr) WalkSubtree(visit Visit) error {
 type SimpleTableExpr interface {
 	iSimpleTableExpr()
 	TableName() string
+	SetTableName(string)
 	SQLNode
 }
 
@@ -914,6 +922,10 @@ func (node TableName) TableName() string {
 	}
 
 	return strings.Join(strs, ".")
+}
+
+func (node TableName) SetTableName(name string) {
+	node = TableName{TableIdent(name)}
 }
 
 // Format formats the node.
@@ -1835,6 +1847,11 @@ func (node *Subquery) TableName() string {
 	return ""
 }
 
+func (node *Subquery) SetTableName(name string) {
+	// TODO - um, wut?
+	return
+}
+
 func (node *Subquery) Eval(ds *dataset.Resource, row [][]byte) (exp ValExpr, err error) {
 	// TODO
 	return nil, nil
@@ -2434,8 +2451,16 @@ func (node ColIdent) EqualString(str string) bool {
 // backquotes if it matches a keyword.
 type TableIdent string
 
+func (node TableIdent) TableName() string {
+	return node.String()
+}
+
 func (node TableIdent) String() string {
 	return string(node)
+}
+
+func (node TableIdent) SetTableName(name string) {
+	node = TableIdent(name)
 }
 
 // Format formats the node.

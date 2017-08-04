@@ -272,8 +272,8 @@ type ResourceData struct {
 // Gather all mentioned tables, attaching them to a *dataset.Resource
 func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*ResourceData, result *dataset.Resource, err error) {
 
-	buf := NewTrackedBuffer(nil)
-	stmt.Format(buf)
+	// buf := NewTrackedBuffer(nil)
+	// stmt.Format(buf)
 
 	result = &dataset.Resource{
 		Format: opts.Format,
@@ -310,7 +310,7 @@ func buildResultResource(stmt *Select, store datastore.Datastore, q *dataset.Que
 
 			data, ok := di.([]byte)
 			if !ok {
-				err = fmt.Errorf("data isn't a byte slic for resource: %s path: %s", name, resource.Path.String())
+				err = fmt.Errorf("data isn't a byte slice for resource: %s path: %s", name, resource.Path.String())
 				return
 			}
 
