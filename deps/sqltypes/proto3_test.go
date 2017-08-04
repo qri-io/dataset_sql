@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	querypb "github.com/youtube/vitess/go/vt/proto/query"
+	querypb "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
 func TestResult(t *testing.T) {
