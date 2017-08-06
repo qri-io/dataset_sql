@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/load"
 )
@@ -115,9 +114,9 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		// check dst against criteria, only continue if it passes
 		// TODO - confirm that the result dataset is the proper one to be passing in here?
 		// see if we can't remove dataset altogether by embedding all info in the ast?
-		if pass, err := stmt.Where.EvalBool(result, row); err != nil {
+		if pass, err := stmt.Where.Eval(result, row); err != nil {
 			return result, nil, err
-		} else if !pass {
+		} else if pass != falseB {
 			continue
 		}
 
@@ -199,10 +198,10 @@ func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (
 	return nil, nil, NotYetImplemented("ddl statements")
 }
 
-func (o *Other) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
-	// TODO - lolololol
-	return nil, nil, NotYetImplemented("other statements")
-}
+// func (o *Other) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+// 	// TODO - lolololol
+// 	return nil, nil, NotYetImplemented("other statements")
+// }
 
 // populateColNames adds type information to ColName nodes in the ast
 func populateColNames(stmt *Select, from map[string]*ResourceData) error {

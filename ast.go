@@ -802,17 +802,19 @@ type AliasedExpr struct {
 	As   ColIdent
 }
 
-func (node *AliasedExpr) Map(col int, src, dst *dataset.Resource, srcRow, dstRow [][]byte) (int, error) {
-	expr, err := node.Expr.Eval(src, srcRow)
+func (node *AliasedExpr) Map(col int, src, srcRow, dstRow [][]byte) (int, error) {
+	val, err := node.Expr.Eval(srcRow)
 	if err != nil {
 		return 0, err
 	}
+	dstRow[col] = val
+	return 1, nil
 
-	if val, ok := expr.(ValExpr); ok {
-		dstRow[col] = val.Bytes()
-		return 1, nil
-	}
-	return 0, fmt.Errorf("invalid selector for column: %d", col)
+	// if val, ok := expr.(*SQLVal); ok {
+	// 	dstRow[col] = val.Bytes()
+	// 	return 1, nil
+	// }
+	// return 0, fmt.Errorf("invalid selector for column: %d", col)
 }
 
 // Field returns a name & datatype for the select expr
@@ -831,8 +833,9 @@ func (node *AliasedExpr) ResultName() (name string) {
 
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
+// TODO - this may need rethinking.
 func (node *AliasedExpr) FieldType(from map[string]*ResourceData) datatypes.Type {
-	switch node.Expr.(type) {
+	switch n := node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
 		for _, resourceData := range from {
@@ -844,12 +847,27 @@ func (node *AliasedExpr) FieldType(from map[string]*ResourceData) datatypes.Type
 			}
 		}
 		return datatypes.Unknown
-	case BoolExpr:
-		return datatypes.Boolean
-	case StrVal:
-		return datatypes.String
-	case NumVal:
-		return datatypes.Float
+	// case BoolExpr:
+	// 	return datatypes.Boolean
+	case *NullVal:
+		return datatypes.Any
+	case *SQLVal:
+		switch n.Type {
+		case StrVal:
+			return datatypes.String
+		case FloatVal:
+			return datatypes.Float
+		case IntVal:
+			return datatypes.Integer
+		case HexNum:
+			// TODO - this is wrong
+			return datatypes.String
+		case HexVal:
+			return datatypes.String
+		case ValArg:
+			// TODO - this is probably wrong
+			return datatypes.Any
+		}
 	}
 
 	return datatypes.Unknown
@@ -935,6 +953,14 @@ func (node Columns) FindColumn(col ColIdent) int {
 // TableExprs represents a list of table expressions.
 type TableExprs []TableExpr
 
+func (node TableExprs) TableNames() (names []string) {
+	for _, tableExpr := range node {
+		names = append(names, tableExpr.TableNames()...)
+	}
+
+	return
+}
+
 // Format formats the node.
 func (node TableExprs) Format(buf *TrackedBuffer) {
 	var prefix string
@@ -1015,7 +1041,7 @@ func (node *AliasedTableExpr) WalkSubtree(visit Visit) error {
 type SimpleTableExpr interface {
 	iSimpleTableExpr()
 	TableName() string
-	SetTableName(string)
+	// SetTableName(string)
 	SQLNode
 }
 
@@ -1062,21 +1088,12 @@ type TableName struct {
 }
 
 func (node TableName) TableName() string {
-	if node == nil {
-		return ""
-	}
-
-	strs := make([]string, len(node))
-	for i, id := range node {
-		strs[i] = id.String()
-	}
-
-	return strings.Join(strs, ".")
+	return String(node)
 }
 
-func (node TableName) SetTableName(name string) {
-	node = TableName{TableIdent(name)}
-}
+// func (node TableName) SetTableName(name string) {
+// 	node = TableName{TableIdent(name)}
+// }
 
 // Format formats the node.
 func (node TableName) Format(buf *TrackedBuffer) {
@@ -1238,21 +1255,11 @@ const (
 	HavingStr = "having"
 )
 
-func (node *Where) EvalBool(ds *dataset.Resource, row [][]byte) (bool, error) {
+func (node *Where) Eval(row [][]byte) ([]byte, error) {
 	if node == nil {
-		return true, nil
+		return trueB, nil
 	}
-
-	val, err := node.Expr.Eval(ds, row)
-	if err != nil {
-		return false, err
-	}
-
-	if boolVal, ok := val.(BoolVal); ok {
-		return bool(boolVal), nil
-	}
-
-	return false, fmt.Errorf("couldn't resolve where clause")
+	return node.Expr.Eval(row)
 }
 
 // NewWhere creates a WHERE or HAVING clause out
@@ -1286,7 +1293,7 @@ func (node *Where) WalkSubtree(visit Visit) error {
 // Expr represents an expression.
 type Expr interface {
 	iExpr()
-	Eval(ds *dataset.Resource, row [][]byte) (ValExpr, error)
+	Eval(row [][]byte) ([]byte, error)
 	SQLNode
 }
 
@@ -1362,6 +1369,11 @@ type AndExpr struct {
 	Left, Right Expr
 }
 
+// TODO - finish
+func (node *AndExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval AndExpr")
+}
+
 // Format formats the node.
 func (node *AndExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("%v and %v", node.Left, node.Right)
@@ -1382,6 +1394,11 @@ func (node *AndExpr) WalkSubtree(visit Visit) error {
 // OrExpr represents an OR expression.
 type OrExpr struct {
 	Left, Right Expr
+}
+
+// TODO - finish
+func (node OrExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval or expression")
 }
 
 // Format formats the node.
@@ -1425,6 +1442,11 @@ func (node *NotExpr) WalkSubtree(visit Visit) error {
 // ParenExpr represents a parenthesized boolean expression.
 type ParenExpr struct {
 	Expr Expr
+}
+
+// TODO - finish
+func (node *ParenExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval ParenExpr")
 }
 
 // Format formats the node.
@@ -1651,6 +1673,17 @@ func NewValArg(in []byte) *SQLVal {
 	return &SQLVal{Type: ValArg, Val: in}
 }
 
+// Bytes returns the node values
+// TODO - alter output based on value type?
+// eg: do Hex Values need to change their output?
+func (node *SQLVal) Bytes() []byte {
+	return node.Val
+}
+
+func (node *SQLVal) Eval(row [][]byte) ([]byte, error) {
+	return node.Val, nil
+}
+
 // Format formats the node.
 func (node *SQLVal) Format(buf *TrackedBuffer) {
 	switch node.Type {
@@ -1686,6 +1719,10 @@ func (node *SQLVal) HexDecode() ([]byte, error) {
 // NullVal represents a NULL value.
 type NullVal struct{}
 
+func (node *NullVal) Eval(row [][]byte) ([]byte, error) {
+	return nil, nil
+}
+
 // Format formats the node.
 func (node *NullVal) Format(buf *TrackedBuffer) {
 	buf.Myprintf("null")
@@ -1695,6 +1732,12 @@ func (node *NullVal) Format(buf *TrackedBuffer) {
 func (node *NullVal) WalkSubtree(visit Visit) error {
 	return nil
 }
+
+// true & false byte refs
+var (
+	trueB  = []byte("true")
+	falseB = []byte("false")
+)
 
 // BoolVal is true or false.
 type BoolVal bool
@@ -1719,9 +1762,41 @@ type ColName struct {
 	// It's a placeholder for analyzers to store
 	// additional data, typically info about which
 	// table or column this node references.
-	Metadata  interface{}
+	Metadata interface{}
+	// field info
+	Field *dataset.Field
+	// RowIndex is the... column index?
+	RowIndex  int
 	Name      ColIdent
 	Qualifier TableName
+}
+
+// Eval evaluates the node against a row of data
+func (node *ColName) Eval(row [][]byte) ([]byte, error) {
+	// switch node.Field.Type {
+	// case datatypes.Any:
+	// 	return row[node.RowIndex], nil
+	// case datatypes.String:
+	// 	return row[node.RowIndex], nil
+	// case datatypes.Float:
+	// 	return row[node.RowIndex], nil
+	// case datatypes.Integer:
+	// 	return row[node.RowIndex], nil
+	// case datatypes.Date:
+	// 	return row[node.RowIndex], nil
+	// case datatypes.Boolean:
+	// 	val, err := datatypes.ParseBoolean(row[node.RowIndex])
+
+	// 	return BoolVal(val), err
+	// case datatypes.Object:
+	// 	// TODO
+	// 	return NewStrVal(row[node.RowIndex]), nil
+	// case datatypes.Array:
+	// 	// TODO
+	// 	return NewStrVal(row[node.RowIndex]), nil
+	// }
+	// return nil, fmt.Errorf("couldn't find a column named '%s'", node.Name)
+	return row[node.RowIndex], nil
 }
 
 // Format formats the node.
@@ -1767,6 +1842,11 @@ func (ListArg) iColTuple()   {}
 // ValTuple represents a tuple of actual values.
 type ValTuple Exprs
 
+func (node ValTuple) Eval(row [][]byte) ([]byte, error) {
+	// TODO - huh?
+	return nil, NotYetImplemented("val tuple Eval")
+}
+
 // Format formats the node.
 func (node ValTuple) Format(buf *TrackedBuffer) {
 	buf.Myprintf("(%v)", Exprs(node))
@@ -1792,12 +1872,12 @@ func (node *Subquery) TableName() string {
 	return ""
 }
 
-func (node *Subquery) SetTableName(name string) {
-	// TODO - um, wut?
-	return
-}
+// func (node *Subquery) SetTableName(name string) {
+// 	// TODO - um, wut?
+// 	return
+// }
 
-func (node *Subquery) Eval(ds *dataset.Resource, row [][]byte) (exp ValExpr, err error) {
+func (node *Subquery) Eval(row [][]byte) (exp *SQLVal, err error) {
 	// TODO
 	return nil, nil
 }
@@ -1820,6 +1900,11 @@ func (node *Subquery) WalkSubtree(visit Visit) error {
 
 // ListArg represents a named list argument.
 type ListArg []byte
+
+func (node ListArg) Eval(row [][]byte) ([]byte, error) {
+	// TODO - huh?
+	return node, nil
+}
 
 // Format formats the node.
 func (node ListArg) Format(buf *TrackedBuffer) {
@@ -1883,6 +1968,10 @@ const (
 	BangStr   = "!"
 	BinaryStr = "binary "
 )
+
+func (node *UnaryExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval UnaryExpr")
+}
 
 // Format formats the node.
 func (node *UnaryExpr) Format(buf *TrackedBuffer) {
@@ -2039,6 +2128,13 @@ func (node *GroupConcatExpr) WalkSubtree(visit Visit) error {
 type ValuesFuncExpr struct {
 	Name     ColIdent
 	Resolved Expr
+}
+
+func (node *ValuesFuncExpr) Eval(row [][]byte) ([]byte, error) {
+	if node.Resolved == nil {
+		return nil, fmt.Errorf("invalid values expression: %s", String(node))
+	}
+	return node.Resolved.Eval(row)
 }
 
 // Format formats the node.
@@ -2530,13 +2626,9 @@ func (node TableIdent) TableName() string {
 	return node.String()
 }
 
-func (node TableIdent) String() string {
-	return string(node)
-}
-
-func (node TableIdent) SetTableName(name string) {
-	node = TableIdent(name)
-}
+// func (node TableIdent) SetTableName(name string) {
+// 	node = TableIdent(name)
+// }
 
 // Format formats the node.
 func (node TableIdent) Format(buf *TrackedBuffer) {
