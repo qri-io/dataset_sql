@@ -1091,6 +1091,10 @@ func (node TableName) TableName() string {
 	return String(node)
 }
 
+func (node TableName) String() string {
+	return String(node)
+}
+
 // func (node TableName) SetTableName(name string) {
 // 	node = TableName{TableIdent(name)}
 // }
@@ -2416,6 +2420,23 @@ func (node *Order) WalkSubtree(visit Visit) error {
 // Limit represents a LIMIT clause.
 type Limit struct {
 	Offset, Rowcount Expr
+}
+
+func (node *Limit) Counts() (limit, offset int64, err error) {
+	if node == nil {
+		return 0, 0, nil
+	}
+	lb, err := node.Rowcount.Eval(nil)
+	if err != nil {
+		return
+	}
+	limit, err = datatypes.ParseInteger(lb)
+	if err != nil {
+		return
+	}
+	ob, err := node.Offset.Eval(nil)
+	offset, err = datatypes.ParseInteger(ob)
+	return
 }
 
 // Format formats the node.

@@ -78,14 +78,13 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 
 	w := newResultWriter(result)
 
-	limit := int64(0)
-	offset := int64(0)
+	limit, offset, err := stmt.Limit.Counts()
+	if err != nil {
+		return result, nil, err
+	}
+
 	added := int64(0)
 	skipped := int64(0)
-	if stmt.LimitOffset != nil {
-		limit = stmt.LimitOffset.GetRowCount()
-		offset = stmt.LimitOffset.GetOffset()
-	}
 
 	data, lengths, err := buildDatabase(store, from, result)
 	if err != nil {
@@ -114,9 +113,9 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		// check dst against criteria, only continue if it passes
 		// TODO - confirm that the result dataset is the proper one to be passing in here?
 		// see if we can't remove dataset altogether by embedding all info in the ast?
-		if pass, err := stmt.Where.Eval(result, row); err != nil {
+		if pass, err := stmt.Where.Eval(row); err != nil {
 			return result, nil, err
-		} else if pass != falseB {
+		} else if bytes.Equal(pass, falseB) {
 			continue
 		}
 
@@ -127,7 +126,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		}
 
 		// project result row
-		row, err = projectRow(result, stmt.SelectExprs, proj, row)
+		row, err = projectRow(stmt.SelectExprs, proj, row)
 		if err != nil {
 			return
 		}
@@ -198,19 +197,14 @@ func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (
 	return nil, nil, NotYetImplemented("ddl statements")
 }
 
-// func (o *Other) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
-// 	// TODO - lolololol
-// 	return nil, nil, NotYetImplemented("other statements")
-// }
-
 // populateColNames adds type information to ColName nodes in the ast
 func populateColNames(stmt *Select, from map[string]*ResourceData) error {
 	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
 		if colName, ok := node.(*ColName); ok && node != nil {
-			if colName.Qualifier != nil {
+			if colName.Qualifier.String() != "" {
 				idx := 0
 				for tableName, resourceData := range from {
-					if colName.Qualifier.TableName() == tableName {
+					if colName.Qualifier.String() == tableName {
 						for i, f := range resourceData.Resource.Schema.Fields {
 							if colName.Name.String() == f.Name {
 								colName.Field = f
@@ -243,12 +237,12 @@ func populateColNames(stmt *Select, from map[string]*ResourceData) error {
 }
 
 // projectRow takes a master row & fits it to the desired result, evaluating any expressions along the way.
-func projectRow(ds *dataset.Resource, stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
+func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
 		if j == -1 {
 			if nsr, ok := stmt[i].(*NonStarExpr); ok {
-				val, e := nsr.Expr.Eval(ds, row)
+				val, e := nsr.Expr.Eval(row)
 				if e != nil {
 					return row, e
 				}
