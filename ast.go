@@ -974,6 +974,14 @@ type AliasedTableExpr struct {
 	Hints *IndexHints
 }
 
+func (node *AliasedTableExpr) TableName() string {
+	return node.Expr.TableName()
+}
+
+// func (node *AliasedTableExpr) SetTableName(name string) {
+// 	node.Expr
+// }
+
 func (node *AliasedTableExpr) TableNames() []string {
 	return []string{node.Expr.TableName()}
 }
@@ -1007,6 +1015,7 @@ func (node *AliasedTableExpr) WalkSubtree(visit Visit) error {
 type SimpleTableExpr interface {
 	iSimpleTableExpr()
 	TableName() string
+	SetTableName(string)
 	SQLNode
 }
 
@@ -1063,6 +1072,10 @@ func (node TableName) TableName() string {
 	}
 
 	return strings.Join(strs, ".")
+}
+
+func (node TableName) SetTableName(name string) {
+	node = TableName{TableIdent(name)}
 }
 
 // Format formats the node.
@@ -1767,6 +1780,26 @@ func (node ValTuple) WalkSubtree(visit Visit) error {
 // Subquery represents a subquery.
 type Subquery struct {
 	Select SelectStatement
+}
+
+func (node *Subquery) Bytes() []byte {
+	// TODO
+	return nil
+}
+
+func (node *Subquery) TableName() string {
+	// TODO - um, wut?
+	return ""
+}
+
+func (node *Subquery) SetTableName(name string) {
+	// TODO - um, wut?
+	return
+}
+
+func (node *Subquery) Eval(ds *dataset.Resource, row [][]byte) (exp ValExpr, err error) {
+	// TODO
+	return nil, nil
 }
 
 // Format formats the node.
@@ -2488,8 +2521,21 @@ type TableIdent struct {
 }
 
 // NewTableIdent creates a new TableIdent.
+// TODO - this might not be needed?
 func NewTableIdent(str string) TableIdent {
 	return TableIdent{v: str}
+}
+
+func (node TableIdent) TableName() string {
+	return node.String()
+}
+
+func (node TableIdent) String() string {
+	return string(node)
+}
+
+func (node TableIdent) SetTableName(name string) {
+	node = TableIdent(name)
 }
 
 // Format formats the node.
