@@ -113,7 +113,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		// check dst against criteria, only continue if it passes
 		// TODO - confirm that the result dataset is the proper one to be passing in here?
 		// see if we can't remove dataset altogether by embedding all info in the ast?
-		if pass, err := stmt.Where.Eval(row); err != nil {
+		if _, pass, err := stmt.Where.Eval(row); err != nil {
 			return result, nil, err
 		} else if bytes.Equal(pass, falseB) {
 			continue
@@ -252,7 +252,7 @@ func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]by
 	for i, j := range projection {
 		if j == -1 {
 			if axp, ok := stmt[i].(*AliasedExpr); ok {
-				val, e := axp.Expr.Eval(row)
+				_, val, e := axp.Expr.Eval(row)
 				if e != nil {
 					return row, e
 				}

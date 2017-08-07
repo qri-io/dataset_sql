@@ -387,7 +387,7 @@ func TestExtractSetValues(t *testing.T) {
 		err: "syntax error at position 8 near 'invalid'",
 	}, {
 		sql: "select * from t",
-		err: "ast did not yield *sqlparser.Set: *sqlparser.Select",
+		err: "ast did not yield *sqlparser.Set: *dataset_sql.Select",
 	}, {
 		sql: "set a.autocommit=1",
 		err: "invalid syntax: a.autocommit",

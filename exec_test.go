@@ -66,7 +66,7 @@ func TestSelectFields(t *testing.T) {
 		{"select * from b where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from a, b", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
-		{"select * from a, b where a->notes = b->notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		{"select * from a, b where a.notes = b.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
 		// {"select * from test.select_test as a, test.select_test_two as b where a->created = b->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 10},
 		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
