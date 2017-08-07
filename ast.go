@@ -2503,16 +2503,24 @@ func (node *Limit) Counts() (limit, offset int64, err error) {
 	if node == nil {
 		return 0, 0, nil
 	}
-	lb, err := node.Rowcount.Eval(nil)
-	if err != nil {
-		return
+	if node.Rowcount != nil {
+		lb, err := node.Rowcount.Eval(nil)
+		if err != nil {
+			return 0, 0, err
+		}
+		limit, err = datatypes.ParseInteger(lb)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
-	limit, err = datatypes.ParseInteger(lb)
-	if err != nil {
-		return
+
+	if node.Offset != nil {
+		ob, err := node.Offset.Eval(nil)
+		if err != nil {
+			return 0, 0, err
+		}
+		offset, err = datatypes.ParseInteger(ob)
 	}
-	ob, err := node.Offset.Eval(nil)
-	offset, err = datatypes.ParseInteger(ob)
 	return
 }
 

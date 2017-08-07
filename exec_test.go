@@ -60,8 +60,8 @@ func TestSelectFields(t *testing.T) {
 	cases := []execTestCase{
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created, title, views, rating, notes from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		{"select a->created from a limit 5", nil, []*dataset.Field{created}, 5},
-		{"select a->created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select created from a limit 5", nil, []*dataset.Field{created}, 5},
+		{"select a.created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		{"select * from a where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from b where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
