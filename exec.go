@@ -173,28 +173,38 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 	return
 }
 
-func (u *Union) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Union) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-
-func (i *Insert) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Insert) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-
-func (u *Update) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Update) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-
-func (d *Delete) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Delete) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-
-func (s *Set) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Set) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-
-func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
+}
+func (node *ParenSelect) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("ParenSelect statements")
+}
+func (node *Show) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("Show statements")
+}
+func (node *Use) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("Use statements")
+}
+func (node *OtherRead) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("OtherRead statements")
+}
+func (node *OtherAdmin) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
 // populateColNames adds type information to ColName nodes in the ast
@@ -241,12 +251,12 @@ func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]by
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
 		if j == -1 {
-			if nsr, ok := stmt[i].(*NonStarExpr); ok {
-				val, e := nsr.Expr.Eval(row)
+			if axp, ok := stmt[i].(*AliasedExpr); ok {
+				val, e := axp.Expr.Eval(row)
 				if e != nil {
 					return row, e
 				}
-				row[i] = val.Bytes()
+				row[i] = val
 			} else {
 				return row, fmt.Errorf("select expression %d is invalid", i+1)
 			}
@@ -324,14 +334,14 @@ func generateResultSchema(stmt *Select, from map[string]*ResourceData, result *d
 
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
-			name := string(star.TableName)
+			name := star.TableName.String()
 			for tableName, resourceData := range from {
 				// we add fields if the names match, or if no name is specified
 				if tableName == name || name == "" {
 					result.Schema.Fields = append(result.Schema.Fields, resourceData.Resource.Schema.Fields...)
 				}
 			}
-		} else if expr, ok := node.(*NonStarExpr); ok && node != nil {
+		} else if expr, ok := node.(*AliasedExpr); ok && node != nil {
 			result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
 				Name: expr.ResultName(),
 				Type: expr.FieldType(from),
@@ -421,7 +431,7 @@ func fromFieldCount(from map[string]*ResourceData) (count int) {
 
 // nodeColIndex finds the column index for a given node
 func nodeColIndex(node SelectExpr, from map[string]*ResourceData) (idx int, err error) {
-	if nse, ok := node.(*NonStarExpr); ok && node != nil {
+	if nse, ok := node.(*AliasedExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
 			for _, resourceData := range from {
 				for _, f := range resourceData.Resource.Schema.Fields {

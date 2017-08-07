@@ -751,7 +751,7 @@ func (node SelectExprs) WalkSubtree(visit Visit) error {
 // SelectExpr represents a SELECT expression.
 type SelectExpr interface {
 	iSelectExpr()
-	Map(col int, src, dst *dataset.Resource, srcRow, dstRow [][]byte) (colsWritten int, err error)
+	// Map(col int, src, dst *dataset.Resource, srcRow, dstRow [][]byte) (colsWritten int, err error)
 	SQLNode
 }
 
@@ -802,7 +802,7 @@ type AliasedExpr struct {
 	As   ColIdent
 }
 
-func (node *AliasedExpr) Map(col int, src, srcRow, dstRow [][]byte) (int, error) {
+func (node *AliasedExpr) Map(col int, src *dataset.Resource, srcRow, dstRow [][]byte) (int, error) {
 	val, err := node.Expr.Eval(srcRow)
 	if err != nil {
 		return 0, err
@@ -1427,6 +1427,11 @@ type NotExpr struct {
 	Expr Expr
 }
 
+// TODO - finish
+func (node *NotExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval NotExpr")
+}
+
 // Format formats the node.
 func (node *NotExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("not %v", node.Expr)
@@ -1495,6 +1500,11 @@ const (
 	JSONUnquoteExtractOp = "->>"
 )
 
+// TODO - finish
+func (node *ComparisonExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval ComparisonExpr")
+}
+
 // Format formats the node.
 func (node *ComparisonExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("%v %s %v", node.Left, node.Operator, node.Right)
@@ -1528,6 +1538,11 @@ const (
 	BetweenStr    = "between"
 	NotBetweenStr = "not between"
 )
+
+// TODO - finish
+func (node *RangeCond) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval RangeCond")
+}
 
 // Format formats the node.
 func (node *RangeCond) Format(buf *TrackedBuffer) {
@@ -1563,6 +1578,11 @@ const (
 	IsNotFalseStr = "is not false"
 )
 
+// TODO - finish
+func (node *IsExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval IsExpr")
+}
+
 // Format formats the node.
 func (node *IsExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("%v %s", node.Expr, node.Operator)
@@ -1582,6 +1602,11 @@ func (node *IsExpr) WalkSubtree(visit Visit) error {
 // ExistsExpr represents an EXISTS expression.
 type ExistsExpr struct {
 	Subquery *Subquery
+}
+
+// TODO - finish
+func (node *ExistsExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval ExistsExpr")
 }
 
 // Format formats the node.
@@ -1746,6 +1771,13 @@ var (
 // BoolVal is true or false.
 type BoolVal bool
 
+func (node BoolVal) Eval(row [][]byte) ([]byte, error) {
+	if bool(node) == true {
+		return trueB, nil
+	}
+	return falseB, nil
+}
+
 // Format formats the node.
 func (node BoolVal) Format(buf *TrackedBuffer) {
 	if node {
@@ -1866,6 +1898,11 @@ type Subquery struct {
 	Select SelectStatement
 }
 
+// TODO - finish
+func (node *Subquery) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval Subquery")
+}
+
 func (node *Subquery) Bytes() []byte {
 	// TODO
 	return nil
@@ -1880,11 +1917,6 @@ func (node *Subquery) TableName() string {
 // 	// TODO - um, wut?
 // 	return
 // }
-
-func (node *Subquery) Eval(row [][]byte) (exp *SQLVal, err error) {
-	// TODO
-	return nil, nil
-}
 
 // Format formats the node.
 func (node *Subquery) Format(buf *TrackedBuffer) {
@@ -1940,6 +1972,11 @@ const (
 	ShiftLeftStr  = "<<"
 	ShiftRightStr = ">>"
 )
+
+// TODO - finish
+func (node *BinaryExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval BinaryExpr")
+}
 
 // Format formats the node.
 func (node *BinaryExpr) Format(buf *TrackedBuffer) {
@@ -2003,6 +2040,11 @@ type IntervalExpr struct {
 	Unit ColIdent
 }
 
+// TODO - finish
+func (node *IntervalExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval IntervalExpr")
+}
+
 // Format formats the node.
 func (node *IntervalExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("interval %v %v", node.Expr, node.Unit)
@@ -2024,6 +2066,11 @@ func (node *IntervalExpr) WalkSubtree(visit Visit) error {
 type CollateExpr struct {
 	Expr    Expr
 	Charset string
+}
+
+// TODO - finish
+func (node *CollateExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval CollateExpr")
 }
 
 // Format formats the node.
@@ -2048,6 +2095,11 @@ type FuncExpr struct {
 	Name      ColIdent
 	Distinct  bool
 	Exprs     SelectExprs
+}
+
+// TODO - finish
+func (node *FuncExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval FuncExpr")
 }
 
 // Format formats the node.
@@ -2111,6 +2163,11 @@ type GroupConcatExpr struct {
 	Separator string
 }
 
+// TODO - finish
+func (node *GroupConcatExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval GroupConcatExpr")
+}
+
 // Format formats the node
 func (node *GroupConcatExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("group_concat(%s%v%v%s)", node.Distinct, node.Exprs, node.OrderBy, node.Separator)
@@ -2172,6 +2229,11 @@ type ConvertExpr struct {
 	Type *ConvertType
 }
 
+// TODO - finish
+func (node *ConvertExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval ConvertExpr")
+}
+
 // Format formats the node.
 func (node *ConvertExpr) Format(buf *TrackedBuffer) {
 	buf.Myprintf("convert(%v, %v)", node.Expr, node.Type)
@@ -2193,6 +2255,11 @@ func (node *ConvertExpr) WalkSubtree(visit Visit) error {
 type ConvertUsingExpr struct {
 	Expr Expr
 	Type string
+}
+
+// TODO - finish
+func (node *ConvertUsingExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval ConvertUsingExpr")
 }
 
 // Format formats the node.
@@ -2252,6 +2319,11 @@ type MatchExpr struct {
 	Option  string
 }
 
+// TODO - finish
+func (node *MatchExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval MatchExpr")
+}
+
 // MatchExpr.Option
 const (
 	BooleanModeStr                           = " in boolean mode"
@@ -2282,6 +2354,11 @@ type CaseExpr struct {
 	Expr  Expr
 	Whens []*When
 	Else  Expr
+}
+
+// TODO - finish
+func (node *CaseExpr) Eval(row [][]byte) ([]byte, error) {
+	return nil, NotYetImplemented("eval CaseExpr")
 }
 
 // Format formats the node.

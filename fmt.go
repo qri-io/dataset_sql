@@ -31,7 +31,7 @@ func Format(sql string) (string, Statement, map[string]string, error) {
 				current := t.TableName()
 				for set, prev := range remap {
 					if current == prev {
-						ate.Expr = TableName{TableIdent(set)}
+						ate.Expr = TableName{Name: TableIdent{set}}
 						return false, nil
 					}
 				}
@@ -39,7 +39,7 @@ func Format(sql string) (string, Statement, map[string]string, error) {
 				set := names[i]
 				i++
 				remap[set] = current
-				ate.Expr = TableName{TableIdent(set)}
+				ate.Expr = TableName{Name: TableIdent{set}}
 				return false, nil
 			}
 		}
