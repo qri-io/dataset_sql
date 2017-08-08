@@ -1,6 +1,18 @@
-// Copyright 2012, Google Inc. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+/*
+Copyright 2017 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package dataset_sql
 
@@ -9,7 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	sqltypes "github.com/qri-io/dataset_sql/deps/sqltypes"
+	"github.com/qri-io/dataset_sql/bytes2"
+	"github.com/qri-io/dataset_sql/sqltypes"
 )
 
 const eofChar = 0x100
@@ -35,9 +48,20 @@ func NewStringTokenizer(sql string) *Tokenizer {
 	return &Tokenizer{InStream: strings.NewReader(sql)}
 }
 
+// keywords is a map of mysql keywords that fall into two categories:
+// 1) keywords considered reserved by MySQL
+// 2) keywords for us to handle specially in sql.y
+//
+// Those marked as UNUSED are likely reserved keywords. We add them here so that
+// when rewriting queries we can properly backtick quote them so they don't cause issues
+//
+// NOTE: If you add new keywords, add them also to the reserved_keywords or
+// non_reserved_keywords grammar in sql.y -- this will allow the keyword to be used
+// in identifiers. See the docs for each grammar to determine which one to put it into.
 var keywords = map[string]int{
 	"accessible":          UNUSED,
 	"add":                 UNUSED,
+	"against":             AGAINST,
 	"all":                 ALL,
 	"alter":               ALTER,
 	"analyze":             ANALYZE,
@@ -47,45 +71,40 @@ var keywords = map[string]int{
 	"asensitive":          UNUSED,
 	"before":              UNUSED,
 	"between":             BETWEEN,
-	"bigint":              BIGINT, // signed eight-byte integer
-	"bigserial":           BIGSERIAL,
-	"binary":              UNUSED,
-	"bit":                 BIT, // fixed length bit string
+	"bigint":              UNUSED,
+	"binary":              BINARY,
 	"blob":                UNUSED,
+	"boolean":             BOOLEAN,
 	"both":                UNUSED,
-	"bool":                BOOLEAN, // alias for boolean
-	"boolean":             BOOLEAN, // logical Boolean (true/false)
 	"by":                  BY,
 	"call":                UNUSED,
 	"cascade":             UNUSED,
 	"case":                CASE,
 	"cast":                CAST,
 	"change":              UNUSED,
-	"char":                UNUSED,
-	"character":           UNUSED,
+	"character":           CHARACTER,
 	"check":               UNUSED,
-	"collate":             UNUSED,
+	"collate":             COLLATE,
 	"column":              UNUSED,
 	"condition":           UNUSED,
 	"constraint":          UNUSED,
 	"continue":            UNUSED,
-	"convert":             UNUSED,
+	"convert":             CONVERT,
 	"create":              CREATE,
 	"cross":               CROSS,
-	"current_date":        UNUSED,
-	"current_time":        UNUSED,
-	"current_timestamp":   UNUSED,
+	"current_date":        CURRENT_DATE,
+	"current_time":        CURRENT_TIME,
+	"current_timestamp":   CURRENT_TIMESTAMP,
 	"current_user":        UNUSED,
 	"cursor":              UNUSED,
-	"database":            UNUSED,
-	"databases":           UNUSED,
-	"date":                DATE, // calendar date (year, month, day)
+	"database":            DATABASE,
+	"databases":           DATABASES,
 	"day_hour":            UNUSED,
 	"day_microsecond":     UNUSED,
 	"day_minute":          UNUSED,
 	"day_second":          UNUSED,
+	"date":                DATE,
 	"dec":                 UNUSED,
-	"decimal":             NUMERIC, // alias for decmial
 	"declare":             UNUSED,
 	"default":             DEFAULT,
 	"delayed":             UNUSED,
@@ -95,7 +114,7 @@ var keywords = map[string]int{
 	"deterministic":       UNUSED,
 	"distinct":            DISTINCT,
 	"distinctrow":         UNUSED,
-	"div":                 UNUSED,
+	"div":                 DIV,
 	"double":              UNUSED,
 	"drop":                DROP,
 	"duplicate":           DUPLICATE,
@@ -104,15 +123,17 @@ var keywords = map[string]int{
 	"elseif":              UNUSED,
 	"enclosed":            UNUSED,
 	"end":                 END,
+	"escape":              ESCAPE,
 	"escaped":             UNUSED,
 	"exists":              EXISTS,
 	"exit":                UNUSED,
 	"explain":             EXPLAIN,
+	"expansion":           EXPANSION,
 	"false":               FALSE,
 	"fetch":               UNUSED,
-	"float":               FLOAT,
-	"float4":              FLOAT,
-	"float8":              FLOAT,
+	"float":               UNUSED,
+	"float4":              UNUSED,
+	"float8":              UNUSED,
 	"for":                 FOR,
 	"force":               FORCE,
 	"foreign":             UNUSED,
@@ -122,6 +143,7 @@ var keywords = map[string]int{
 	"get":                 UNUSED,
 	"grant":               UNUSED,
 	"group":               GROUP,
+	"group_concat":        GROUP_CONCAT,
 	"having":              HAVING,
 	"high_priority":       UNUSED,
 	"hour_microsecond":    UNUSED,
@@ -136,13 +158,13 @@ var keywords = map[string]int{
 	"inner":               INNER,
 	"insensitive":         UNUSED,
 	"insert":              INSERT,
-	"int":                 INTEGER, // alias for int
+	"int":                 UNUSED,
 	"int1":                UNUSED,
 	"int2":                UNUSED,
 	"int3":                UNUSED,
-	"int4":                INTEGER, // alias for int
-	"int8":                BIGINT,  // alias for bigint
-	"integer":             INTEGER, // signed four-byte integer
+	"int4":                UNUSED,
+	"int8":                UNUSED,
+	"integer":             INTEGER,
 	"interval":            INTERVAL,
 	"into":                INTO,
 	"io_after_gtids":      UNUSED,
@@ -152,6 +174,7 @@ var keywords = map[string]int{
 	"key":                 KEY,
 	"keys":                UNUSED,
 	"kill":                UNUSED,
+	"language":            LANGUAGE,
 	"last_insert_id":      LAST_INSERT_ID,
 	"leading":             UNUSED,
 	"leave":               UNUSED,
@@ -161,8 +184,8 @@ var keywords = map[string]int{
 	"linear":              UNUSED,
 	"lines":               UNUSED,
 	"load":                UNUSED,
-	"localtime":           UNUSED,
-	"localtimestamp":      UNUSED,
+	"localtime":           LOCALTIME,
+	"localtimestamp":      LOCALTIMESTAMP,
 	"lock":                LOCK,
 	"long":                UNUSED,
 	"longblob":            UNUSED,
@@ -170,7 +193,7 @@ var keywords = map[string]int{
 	"loop":                UNUSED,
 	"low_priority":        UNUSED,
 	"master_bind":         UNUSED,
-	"match":               UNUSED,
+	"match":               MATCH,
 	"maxvalue":            UNUSED,
 	"mediumblob":          UNUSED,
 	"mediumint":           UNUSED,
@@ -178,17 +201,18 @@ var keywords = map[string]int{
 	"middleint":           UNUSED,
 	"minute_microsecond":  UNUSED,
 	"minute_second":       UNUSED,
-	"mod":                 UNUSED,
+	"mod":                 MOD,
+	"mode":                MODE,
 	"modifies":            UNUSED,
 	"natural":             NATURAL,
 	"next":                NEXT,
 	"not":                 NOT,
 	"no_write_to_binlog":  UNUSED,
 	"null":                NULL,
-	"numeric":             NUMERIC, // exact numeric of selectable precision
+	"numeric":             UNUSED,
 	"offset":              OFFSET,
 	"on":                  ON,
-	"optimize":            UNUSED,
+	"optimize":            OPTIMIZE,
 	"optimizer_costs":     UNUSED,
 	"option":              UNUSED,
 	"optionally":          UNUSED,
@@ -199,8 +223,9 @@ var keywords = map[string]int{
 	"outfile":             UNUSED,
 	"partition":           UNUSED,
 	"precision":           UNUSED,
-	"primary":             PRIMARY,
+	"primary":             UNUSED,
 	"procedure":           UNUSED,
+	"query":               QUERY,
 	"range":               UNUSED,
 	"read":                UNUSED,
 	"reads":               UNUSED,
@@ -210,8 +235,9 @@ var keywords = map[string]int{
 	"regexp":              REGEXP,
 	"release":             UNUSED,
 	"rename":              RENAME,
+	"repair":              REPAIR,
 	"repeat":              UNUSED,
-	"replace":             UNUSED,
+	"replace":             REPLACE,
 	"require":             UNUSED,
 	"resignal":            UNUSED,
 	"restrict":            UNUSED,
@@ -223,10 +249,10 @@ var keywords = map[string]int{
 	"schemas":             UNUSED,
 	"second_microsecond":  UNUSED,
 	"select":              SELECT,
-	"serial8":             BIGSERIAL,
 	"sensitive":           UNUSED,
-	"separator":           UNUSED,
+	"separator":           SEPARATOR,
 	"set":                 SET,
+	"share":               SHARE,
 	"show":                SHOW,
 	"signal":              UNUSED,
 	"smallint":            UNUSED,
@@ -237,18 +263,18 @@ var keywords = map[string]int{
 	"sqlstate":            UNUSED,
 	"sqlwarning":          UNUSED,
 	"sql_big_result":      UNUSED,
+	"sql_cache":           SQL_CACHE,
 	"sql_calc_found_rows": UNUSED,
+	"sql_no_cache":        SQL_NO_CACHE,
 	"sql_small_result":    UNUSED,
 	"ssl":                 UNUSED,
 	"starting":            UNUSED,
 	"stored":              UNUSED,
 	"straight_join":       STRAIGHT_JOIN,
 	"table":               TABLE,
+	"tables":              TABLES,
 	"terminated":          UNUSED,
-	"text":                TEXT, // variable-length character string
 	"then":                THEN,
-	"time":                TIME, // time of day
-	"timetz":              TIME, // time of day, including time zone
 	"tinyblob":            UNUSED,
 	"tinyint":             UNUSED,
 	"tinytext":            UNUSED,
@@ -256,19 +282,18 @@ var keywords = map[string]int{
 	"trailing":            UNUSED,
 	"trigger":             UNUSED,
 	"true":                TRUE,
+	"truncate":            TRUNCATE,
 	"undo":                UNUSED,
 	"union":               UNION,
 	"unique":              UNIQUE,
 	"unlock":              UNUSED,
-	"unsigned":            UNUSED,
 	"update":              UPDATE,
 	"usage":               UNUSED,
 	"use":                 USE,
 	"using":               USING,
-	"utc_date":            UNUSED,
-	"utc_time":            UNUSED,
-	"utc_timestamp":       UNUSED,
-	"uuid":                UUID, // universally unique identifier
+	"utc_date":            UTC_DATE,
+	"utc_time":            UTC_TIME,
+	"utc_timestamp":       UTC_TIMESTAMP,
 	"values":              VALUES,
 	"varbinary":           UNUSED,
 	"varchar":             UNUSED,
@@ -276,10 +301,13 @@ var keywords = map[string]int{
 	"varying":             UNUSED,
 	"virtual":             UNUSED,
 	"view":                VIEW,
+	"vitess_keyspaces":    VITESS_KEYSPACES,
+	"vitess_shards":       VITESS_SHARDS,
+	"vschema_tables":      VSCHEMA_TABLES,
 	"when":                WHEN,
 	"where":               WHERE,
 	"while":               UNUSED,
-	"with":                UNUSED,
+	"with":                WITH,
 	"write":               UNUSED,
 	"xor":                 UNUSED,
 	"year_month":          UNUSED,
@@ -296,17 +324,14 @@ func (tkn *Tokenizer) Lex(lval *yySymType) int {
 		}
 		typ, val = tkn.Scan()
 	}
-	switch typ {
-	case ID, STRING, NUMBER, VALUE_ARG, LIST_ARG, COMMENT:
-		lval.bytes = val
-	}
+	lval.bytes = val
 	tkn.lastToken = val
 	return typ
 }
 
 // Error is called by go yacc if there's a parsing error.
 func (tkn *Tokenizer) Error(err string) {
-	buf := &bytes.Buffer{}
+	buf := &bytes2.Buffer{}
 	if tkn.lastToken != nil {
 		fmt.Fprintf(buf, "%s at position %v near '%s'", err, tkn.Position, tkn.lastToken)
 	} else {
@@ -328,29 +353,40 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 	tkn.skipBlank()
 	switch ch := tkn.lastChar; {
 	case isLetter(ch):
-		return tkn.scanIdentifier()
+		tkn.next()
+		if ch == 'X' || ch == 'x' {
+			if tkn.lastChar == '\'' {
+				tkn.next()
+				return tkn.scanHex()
+			}
+		}
+		return tkn.scanIdentifier(byte(ch))
 	case isDigit(ch):
 		return tkn.scanNumber(false)
 	case ch == ':':
 		return tkn.scanBindVar()
 	default:
 		tkn.next()
-
-		// ugly as sin but it works
-		// TODO - make this not ugly
-		if tkn.lastChar == '>' && ch == '-' {
-			tkn.next()
-			return RIGHT_ARROW, nil
-		}
-
 		switch ch {
 		case eofChar:
 			return 0, nil
-		case '=', ',', ';', '(', ')', '+', '*', '%', '&', '|', '^', '~':
+		case '=', ',', ';', '(', ')', '+', '*', '%', '^', '~':
+			return int(ch), nil
+		case '&':
+			if tkn.lastChar == '&' {
+				tkn.next()
+				return AND, nil
+			}
+			return int(ch), nil
+		case '|':
+			if tkn.lastChar == '|' {
+				tkn.next()
+				return OR, nil
+			}
 			return int(ch), nil
 		case '?':
 			tkn.posVarIndex++
-			buf := new(bytes.Buffer)
+			buf := new(bytes2.Buffer)
 			fmt.Fprintf(buf, ":v%d", tkn.posVarIndex)
 			return VALUE_ARG, buf.Bytes()
 		case '.':
@@ -369,10 +405,21 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 			default:
 				return int(ch), nil
 			}
+		case '#':
+			tkn.next()
+			return tkn.scanCommentType1("#")
 		case '-':
-			if tkn.lastChar == '-' {
+			switch tkn.lastChar {
+			case '-':
 				tkn.next()
 				return tkn.scanCommentType1("--")
+			case '>':
+				tkn.next()
+				if tkn.lastChar == '>' {
+					tkn.next()
+					return JSON_UNQUOTE_EXTRACT_OP, nil
+				}
+				return JSON_EXTRACT_OP, nil
 			}
 			return int(ch), nil
 		case '<':
@@ -396,7 +443,6 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 				return int(ch), nil
 			}
 		case '>':
-			// fmt.Println(tkn.lastChar, int('-'), string(tkn.lastChar))
 			switch tkn.lastChar {
 			case '=':
 				tkn.next()
@@ -412,7 +458,7 @@ func (tkn *Tokenizer) Scan() (int, []byte) {
 				tkn.next()
 				return NE, nil
 			}
-			return LEX_ERROR, []byte("!")
+			return int(ch), nil
 		case '\'', '"':
 			return tkn.scanString(ch, STRING)
 		case '`':
@@ -431,11 +477,12 @@ func (tkn *Tokenizer) skipBlank() {
 	}
 }
 
-func (tkn *Tokenizer) scanIdentifier() (int, []byte) {
-	buffer := &bytes.Buffer{}
-	buffer.WriteByte(byte(tkn.lastChar))
-	for tkn.next(); isLetter(tkn.lastChar) || isDigit(tkn.lastChar); tkn.next() {
+func (tkn *Tokenizer) scanIdentifier(firstByte byte) (int, []byte) {
+	buffer := &bytes2.Buffer{}
+	buffer.WriteByte(firstByte)
+	for isLetter(tkn.lastChar) || isDigit(tkn.lastChar) {
 		buffer.WriteByte(byte(tkn.lastChar))
+		tkn.next()
 	}
 	lowered := bytes.ToLower(buffer.Bytes())
 	loweredStr := string(lowered)
@@ -449,24 +496,52 @@ func (tkn *Tokenizer) scanIdentifier() (int, []byte) {
 	return ID, buffer.Bytes()
 }
 
-func (tkn *Tokenizer) scanLiteralIdentifier() (int, []byte) {
-	buffer := &bytes.Buffer{}
-	buffer.WriteByte(byte(tkn.lastChar))
-	if !isLetter(tkn.lastChar) {
-		return LEX_ERROR, buffer.Bytes()
-	}
-	for tkn.next(); isLetter(tkn.lastChar) || isDigit(tkn.lastChar); tkn.next() {
-		buffer.WriteByte(byte(tkn.lastChar))
-	}
-	if tkn.lastChar != '`' {
+func (tkn *Tokenizer) scanHex() (int, []byte) {
+	buffer := &bytes2.Buffer{}
+	tkn.scanMantissa(16, buffer)
+	if tkn.lastChar != '\'' {
 		return LEX_ERROR, buffer.Bytes()
 	}
 	tkn.next()
+	if buffer.Len()%2 != 0 {
+		return LEX_ERROR, buffer.Bytes()
+	}
+	return HEX, buffer.Bytes()
+}
+
+func (tkn *Tokenizer) scanLiteralIdentifier() (int, []byte) {
+	buffer := &bytes2.Buffer{}
+	backTickSeen := false
+	for {
+		if backTickSeen {
+			if tkn.lastChar != '`' {
+				break
+			}
+			backTickSeen = false
+			buffer.WriteByte('`')
+			tkn.next()
+			continue
+		}
+		// The previous char was not a backtick.
+		switch tkn.lastChar {
+		case '`':
+			backTickSeen = true
+		case eofChar:
+			// Premature EOF.
+			return LEX_ERROR, buffer.Bytes()
+		default:
+			buffer.WriteByte(byte(tkn.lastChar))
+		}
+		tkn.next()
+	}
+	if buffer.Len() == 0 {
+		return LEX_ERROR, buffer.Bytes()
+	}
 	return ID, buffer.Bytes()
 }
 
 func (tkn *Tokenizer) scanBindVar() (int, []byte) {
-	buffer := &bytes.Buffer{}
+	buffer := &bytes2.Buffer{}
 	buffer.WriteByte(byte(tkn.lastChar))
 	token := VALUE_ARG
 	tkn.next()
@@ -485,58 +560,44 @@ func (tkn *Tokenizer) scanBindVar() (int, []byte) {
 	return token, buffer.Bytes()
 }
 
-func (tkn *Tokenizer) scanMantissa(base int, buffer *bytes.Buffer) {
+func (tkn *Tokenizer) scanMantissa(base int, buffer *bytes2.Buffer) {
 	for digitVal(tkn.lastChar) < base {
 		tkn.consumeNext(buffer)
 	}
 }
 
 func (tkn *Tokenizer) scanNumber(seenDecimalPoint bool) (int, []byte) {
-	buffer := &bytes.Buffer{}
+	token := INTEGRAL
+	buffer := &bytes2.Buffer{}
 	if seenDecimalPoint {
+		token = FLOAT
 		buffer.WriteByte('.')
 		tkn.scanMantissa(10, buffer)
 		goto exponent
 	}
 
+	// 0x construct.
 	if tkn.lastChar == '0' {
-		// int or float
 		tkn.consumeNext(buffer)
 		if tkn.lastChar == 'x' || tkn.lastChar == 'X' {
-			// hexadecimal int
+			token = HEXNUM
 			tkn.consumeNext(buffer)
 			tkn.scanMantissa(16, buffer)
-		} else {
-			// octal int or float
-			seenDecimalDigit := false
-			tkn.scanMantissa(8, buffer)
-			if tkn.lastChar == '8' || tkn.lastChar == '9' {
-				// illegal octal int or float
-				seenDecimalDigit = true
-				tkn.scanMantissa(10, buffer)
-			}
-			if tkn.lastChar == '.' || tkn.lastChar == 'e' || tkn.lastChar == 'E' {
-				goto fraction
-			}
-			// octal int
-			if seenDecimalDigit {
-				return LEX_ERROR, buffer.Bytes()
-			}
+			goto exit
 		}
-		goto exit
 	}
 
-	// decimal int or float
 	tkn.scanMantissa(10, buffer)
 
-fraction:
 	if tkn.lastChar == '.' {
+		token = FLOAT
 		tkn.consumeNext(buffer)
 		tkn.scanMantissa(10, buffer)
 	}
 
 exponent:
 	if tkn.lastChar == 'e' || tkn.lastChar == 'E' {
+		token = FLOAT
 		tkn.consumeNext(buffer)
 		if tkn.lastChar == '+' || tkn.lastChar == '-' {
 			tkn.consumeNext(buffer)
@@ -545,11 +606,16 @@ exponent:
 	}
 
 exit:
-	return NUMBER, buffer.Bytes()
+	// A letter cannot immediately follow a number.
+	if isLetter(tkn.lastChar) {
+		return LEX_ERROR, buffer.Bytes()
+	}
+
+	return token, buffer.Bytes()
 }
 
 func (tkn *Tokenizer) scanString(delim uint16, typ int) (int, []byte) {
-	buffer := &bytes.Buffer{}
+	buffer := &bytes2.Buffer{}
 	for {
 		ch := tkn.lastChar
 		tkn.next()
@@ -579,7 +645,7 @@ func (tkn *Tokenizer) scanString(delim uint16, typ int) (int, []byte) {
 }
 
 func (tkn *Tokenizer) scanCommentType1(prefix string) (int, []byte) {
-	buffer := &bytes.Buffer{}
+	buffer := &bytes2.Buffer{}
 	buffer.WriteString(prefix)
 	for tkn.lastChar != eofChar {
 		if tkn.lastChar == '\n' {
@@ -592,7 +658,7 @@ func (tkn *Tokenizer) scanCommentType1(prefix string) (int, []byte) {
 }
 
 func (tkn *Tokenizer) scanCommentType2() (int, []byte) {
-	buffer := &bytes.Buffer{}
+	buffer := &bytes2.Buffer{}
 	buffer.WriteString("/*")
 	for {
 		if tkn.lastChar == '*' {
@@ -611,7 +677,7 @@ func (tkn *Tokenizer) scanCommentType2() (int, []byte) {
 	return COMMENT, buffer.Bytes()
 }
 
-func (tkn *Tokenizer) consumeNext(buffer *bytes.Buffer) {
+func (tkn *Tokenizer) consumeNext(buffer *bytes2.Buffer) {
 	if tkn.lastChar == eofChar {
 		// This should never happen.
 		panic("unexpected EOF")

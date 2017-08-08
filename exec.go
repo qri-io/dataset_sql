@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-datastore"
-	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/load"
 )
@@ -79,14 +78,13 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 
 	w := newResultWriter(result)
 
-	limit := int64(0)
-	offset := int64(0)
+	limit, offset, err := stmt.Limit.Counts()
+	if err != nil {
+		return result, nil, err
+	}
+
 	added := int64(0)
 	skipped := int64(0)
-	if stmt.LimitOffset != nil {
-		limit = stmt.LimitOffset.GetRowCount()
-		offset = stmt.LimitOffset.GetOffset()
-	}
 
 	data, lengths, err := buildDatabase(store, from, result)
 	if err != nil {
@@ -115,9 +113,9 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		// check dst against criteria, only continue if it passes
 		// TODO - confirm that the result dataset is the proper one to be passing in here?
 		// see if we can't remove dataset altogether by embedding all info in the ast?
-		if pass, err := stmt.Where.EvalBool(result, row); err != nil {
+		if _, pass, err := stmt.Where.Eval(row); err != nil {
 			return result, nil, err
-		} else if !pass {
+		} else if bytes.Equal(pass, falseB) {
 			continue
 		}
 
@@ -128,7 +126,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 		}
 
 		// project result row
-		row, err = projectRow(result, stmt.SelectExprs, proj, row)
+		row, err = projectRow(stmt.SelectExprs, proj, row)
 		if err != nil {
 			return
 		}
@@ -175,43 +173,48 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, opts *Exec
 	return
 }
 
-func (u *Union) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Union) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-
-func (i *Insert) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Insert) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-
-func (u *Update) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Update) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-
-func (d *Delete) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Delete) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-
-func (s *Set) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *Set) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-
-func (d *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+func (node *DDL) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-
-func (o *Other) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
-	// TODO - lolololol
-	return nil, nil, NotYetImplemented("other statements")
+func (node *ParenSelect) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("ParenSelect statements")
+}
+func (node *Show) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("Show statements")
+}
+func (node *Use) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("Use statements")
+}
+func (node *OtherRead) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("OtherRead statements")
+}
+func (node *OtherAdmin) Exec(store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (*dataset.Resource, []byte, error) {
+	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
 // populateColNames adds type information to ColName nodes in the ast
 func populateColNames(stmt *Select, from map[string]*ResourceData) error {
 	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
 		if colName, ok := node.(*ColName); ok && node != nil {
-			if colName.Qualifier != nil {
+			if colName.Qualifier.String() != "" {
 				idx := 0
 				for tableName, resourceData := range from {
-					if colName.Qualifier.TableName() == tableName {
+					if colName.Qualifier.String() == tableName {
 						for i, f := range resourceData.Resource.Schema.Fields {
 							if colName.Name.String() == f.Name {
 								colName.Field = f
@@ -244,16 +247,16 @@ func populateColNames(stmt *Select, from map[string]*ResourceData) error {
 }
 
 // projectRow takes a master row & fits it to the desired result, evaluating any expressions along the way.
-func projectRow(ds *dataset.Resource, stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
+func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
 		if j == -1 {
-			if nsr, ok := stmt[i].(*NonStarExpr); ok {
-				val, e := nsr.Expr.Eval(ds, row)
+			if axp, ok := stmt[i].(*AliasedExpr); ok {
+				_, val, e := axp.Expr.Eval(row)
 				if e != nil {
 					return row, e
 				}
-				row[i] = val.Bytes()
+				row[i] = val
 			} else {
 				return row, fmt.Errorf("select expression %d is invalid", i+1)
 			}
@@ -331,14 +334,14 @@ func generateResultSchema(stmt *Select, from map[string]*ResourceData, result *d
 
 	for _, node := range stmt.SelectExprs {
 		if star, ok := node.(*StarExpr); ok && node != nil {
-			name := string(star.TableName)
+			name := star.TableName.String()
 			for tableName, resourceData := range from {
 				// we add fields if the names match, or if no name is specified
 				if tableName == name || name == "" {
 					result.Schema.Fields = append(result.Schema.Fields, resourceData.Resource.Schema.Fields...)
 				}
 			}
-		} else if expr, ok := node.(*NonStarExpr); ok && node != nil {
+		} else if expr, ok := node.(*AliasedExpr); ok && node != nil {
 			result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
 				Name: expr.ResultName(),
 				Type: expr.FieldType(from),
@@ -428,7 +431,7 @@ func fromFieldCount(from map[string]*ResourceData) (count int) {
 
 // nodeColIndex finds the column index for a given node
 func nodeColIndex(node SelectExpr, from map[string]*ResourceData) (idx int, err error) {
-	if nse, ok := node.(*NonStarExpr); ok && node != nil {
+	if nse, ok := node.(*AliasedExpr); ok && node != nil {
 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
 			for _, resourceData := range from {
 				for _, f := range resourceData.Resource.Schema.Fields {

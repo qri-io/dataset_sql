@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	querypb "github.com/youtube/vitess/go/vt/proto/query"
+	querypb "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
 func TestMake(t *testing.T) {
