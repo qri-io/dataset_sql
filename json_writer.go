@@ -12,11 +12,11 @@ import (
 type JsonWriter struct {
 	writeObjects bool
 	rowsWritten  int
-	ds           *dataset.Resource
+	ds           *dataset.Structure
 	buf          *bytes.Buffer
 }
 
-func NewJsonWriter(ds *dataset.Resource, writeObjects bool) *JsonWriter {
+func NewJsonWriter(ds *dataset.Structure, writeObjects bool) *JsonWriter {
 	return &JsonWriter{
 		writeObjects: writeObjects,
 		ds:           ds,

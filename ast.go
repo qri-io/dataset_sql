@@ -120,7 +120,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Resource, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -149,7 +149,7 @@ type SelectStatement interface {
 	iInsertRows()
 	AddOrder(*Order)
 	SetLimit(*Limit)
-	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Resource, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -752,7 +752,7 @@ func (node SelectExprs) WalkSubtree(visit Visit) error {
 // SelectExpr represents a SELECT expression.
 type SelectExpr interface {
 	iSelectExpr()
-	// Map(col int, src, dst *dataset.Resource, srcRow, dstRow [][]byte) (colsWritten int, err error)
+	// Map(col int, src, dst *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error)
 	SQLNode
 }
 
@@ -765,7 +765,7 @@ type StarExpr struct {
 	TableName TableName
 }
 
-func (node *StarExpr) Map(col int, src, dst *dataset.Resource, srcRow, dstRow [][]byte) (colsWritten int, err error) {
+func (node *StarExpr) Map(col int, src, dst *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error) {
 	// if node.TableName != nil {
 	// Todo - Table names should be scoped
 	// d.DatasetForAddress()
@@ -803,7 +803,7 @@ type AliasedExpr struct {
 	As   ColIdent
 }
 
-func (node *AliasedExpr) Map(col int, src *dataset.Resource, srcRow, dstRow [][]byte) (int, error) {
+func (node *AliasedExpr) Map(col int, src *dataset.Structure, srcRow, dstRow [][]byte) (int, error) {
 	_, val, err := node.Expr.Eval(srcRow)
 	if err != nil {
 		return 0, err
@@ -835,12 +835,12 @@ func (node *AliasedExpr) ResultName() (name string) {
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
 // TODO - this may need rethinking.
-func (node *AliasedExpr) FieldType(from map[string]*ResourceData) datatypes.Type {
+func (node *AliasedExpr) FieldType(from map[string]*StructureData) datatypes.Type {
 	switch n := node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
 		for _, resourceData := range from {
-			for _, f := range resourceData.Resource.Schema.Fields {
+			for _, f := range resourceData.Structure.Schema.Fields {
 				// fmt.Println(name.Name.String(), f.Name)
 				if colName.Name.String() == f.Name {
 					return f.Type
@@ -900,7 +900,7 @@ type Nextval struct {
 }
 
 // TODO - ?
-func (node Nextval) Map(col int, srcDataset, dstDataset *dataset.Resource, srcRow, dstRow [][]byte) (colsWritten int, err error) {
+func (node Nextval) Map(col int, srcDataset, dstDataset *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error) {
 	return
 }
 

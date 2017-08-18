@@ -28,7 +28,7 @@ func TestSelectFields(t *testing.T) {
 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-	a := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+	a := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
@@ -39,7 +39,7 @@ func TestSelectFields(t *testing.T) {
 	})
 	a.Path = datastore.NewKey("aData")
 
-	b := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+	b := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
@@ -134,7 +134,7 @@ func TestSelectFields(t *testing.T) {
 // 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
 // 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-// 	ds := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+// 	ds := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 // 		// o.Name = "null_values_test"
 // 		// o.Address = dataset.NewAddress("test.null_values_test")
 // 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
