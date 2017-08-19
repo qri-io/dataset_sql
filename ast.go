@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/ipfs/go-datastore"
@@ -30,11 +29,6 @@ import (
 	"github.com/qri-io/dataset_sql/sqltypes"
 	pbquery "github.com/qri-io/dataset_sql/vt/proto/query"
 )
-
-// NotYetImplemented reports missing features. it'd be lovely to not need this ;)
-func NotYetImplemented(feature string) error {
-	return fmt.Errorf("%s are not implemented. check docs.qri.io/releases for info", feature)
-}
 
 // Instructions for creating new types: If a type
 // needs to satisfy an interface, declare that function
@@ -120,7 +114,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Structure, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, map[string]*dataset.StructuredData, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -149,7 +143,7 @@ type SelectStatement interface {
 	iInsertRows()
 	AddOrder(*Order)
 	SetLimit(*Limit)
-	Exec(datastore.Datastore, *dataset.Query, *ExecOpt) (*dataset.Structure, []byte, error)
+	Exec(datastore.Datastore, *dataset.Query, map[string]*dataset.StructuredData, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }

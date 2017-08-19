@@ -2,6 +2,8 @@ package dataset_sql
 
 import (
 	"fmt"
+	"github.com/qri-io/dataset"
+	"github.com/qri-io/dataset/datatypes"
 )
 
 // TODO - lololololololol
@@ -20,7 +22,7 @@ func Format(sql string) (string, Statement, map[string]string, error) {
 
 	sel, ok := stmt.(*Select)
 	if !ok {
-		return "", nil, nil, fmt.Errorf("dataset_sql: Format currently only supports 'select' statements")
+		return "", nil, nil, NotYetImplemented("Statements other than 'SELECT'")
 	}
 
 	i := 0
@@ -65,15 +67,17 @@ func algebraicStructures(concrete map[string]*dataset.Structure) (algStructures 
 		remap[name] = an
 		i++
 	}
+
+	return
 }
 
-// Output structure determines the structure of the output for a select statement
+// ResultStructure determines the structure of the output for a select statement
 // and a provided resource table map
-func OutputStructure(stmt *Select, resources map[string]*dataset.Structure) (*dataset.Structure, error) {
+func ResultStructure(stmt *Select, resources map[string]*dataset.Structure) (*dataset.Structure, error) {
 	st := &dataset.Structure{Schema: &dataset.Schema{}}
 
 EXPRESSIONS:
-	for i, node := range stmt.SelectExprs {
+	for _, node := range stmt.SelectExprs {
 		switch sexpr := node.(type) {
 		case *StarExpr:
 			if sexpr.TableName.String() != "" {
@@ -116,10 +120,10 @@ EXPRESSIONS:
 					return nil, ErrUnrecognizedReference(String(exp))
 				}
 
-				for _, rst := range resources {
-					for _, field := range st.Schema.Fields {
+				for _, rsc := range resources {
+					for _, field := range rsc.Schema.Fields {
 						if col == field.Name {
-							if f.Type != dataset.DataTypeUnknown {
+							if f.Type != datatypes.Unknown {
 								return nil, ErrAmbiguousReference(String(exp))
 							}
 
@@ -138,7 +142,7 @@ EXPRESSIONS:
 					}
 				}
 			case *Subquery:
-				return fmt, NotYetImplemented("Subquerying")
+				return nil, NotYetImplemented("Subquerying")
 			}
 		case Nextval:
 			return nil, NotYetImplemented("NEXT VALUE expressions")
@@ -148,34 +152,23 @@ EXPRESSIONS:
 	return st, nil
 }
 
-func StructureForName(stmt *Select, resources map[string]*dataset.Structure) (*dataset.Structure, error) {
-	for _, node := range stmt.From {
-
-	}
-}
-
-// remapReferences re-writes all table and table column references from remap key to remap value
-// Remap will also destroy any "AS" statements
+// RemapReferences re-writes all table and table column references from remap key to remap value
+// Remap will destroy any table-aliasing ("as" statements)
 // TODO - generalize to apply to Statement instead of *Select
-func RemapReferences(stmt *Select, remap map[string]string, a, b map[string]*Dataset.Structure) (Statement, error) {
-	i := 0
-	stmt.From.WalkSubtree(func(node SQLNode) (bool, error) {
+// TODO - need to finish support for remapping column refs
+func RemapReferences(stmt *Select, remap map[string]string, a, b map[string]*dataset.Structure) (Statement, error) {
+	// i := 0
+	err := stmt.From.WalkSubtree(func(node SQLNode) (bool, error) {
 		switch tExpr := node.(type) {
 		case *AliasedTableExpr:
 			switch t := tExpr.Expr.(type) {
 			case TableName:
 				current := t.TableName()
-				for set, prev := range remap {
-					if current == prev {
-						ate.Expr = TableName{Name: TableIdent{set}}
-						return false, nil
-					}
+				if remap[current] == "" {
+					return false, ErrUnrecognizedReference(current)
 				}
 
-				set := names[i]
-				i++
-				remap[set] = current
-				ate.Expr = TableName{Name: TableIdent{set}}
+				tExpr.Expr = TableName{Name: TableIdent{remap[current]}}
 				return false, nil
 			}
 		case *ParenTableExpr:
@@ -189,4 +182,5 @@ func RemapReferences(stmt *Select, remap map[string]string, a, b map[string]*Dat
 		}
 		return true, nil
 	})
+	return stmt, err
 }
