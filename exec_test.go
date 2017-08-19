@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"github.com/ipfs/go-datastore"
-	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 	// "io/ioutil"
 	// "path/filepath"
 	"testing"
