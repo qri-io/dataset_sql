@@ -50,6 +50,11 @@ func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *E
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
 
+	err = RemoveUnusedReferences(stmt, ds)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// TODO - This is a total hack to support DISTINCT statements for now
 	// in the future this needs to be rolled in as a "hasRow" method
 	// on the resultWriter interface

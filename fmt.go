@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"fmt"
+	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
@@ -150,6 +151,22 @@ EXPRESSIONS:
 	}
 
 	return st, nil
+}
+
+// RemoveUnusedReferences sets ds.Resources to a new map that that contains
+// only datasets refrerenced in the provided select statement,
+// it errors if it cannot find a named dataset from the provided ds.Resources map.
+func RemoveUnusedReferences(stmt *Select, ds *dataset.Dataset) error {
+	resources := map[string]datastore.Key{}
+	for _, name := range stmt.From.TableNames() {
+		path := ds.Resources[name]
+		if path.String() == "" {
+			return ErrUnrecognizedReference(name)
+		}
+		resources[name] = path
+	}
+	ds.Resources = resources
+	return nil
 }
 
 // RemapReferences re-writes all table and table column references from remap key to remap value
