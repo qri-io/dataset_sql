@@ -73,8 +73,8 @@ func abstractStructures(concrete map[string]*dataset.Structure) (algStructures m
 
 // ResultStructure determines the structure of the output for a select statement
 // and a provided resource table map
-func ResultStructure(stmt *Select, resources map[string]*dataset.Structure) (*dataset.Structure, error) {
-	st := &dataset.Structure{Schema: &dataset.Schema{}}
+func ResultStructure(stmt *Select, resources map[string]*dataset.Structure, opts *ExecOpt) (*dataset.Structure, error) {
+	st := &dataset.Structure{Format: opts.Format, Schema: &dataset.Schema{}}
 
 EXPRESSIONS:
 	for _, node := range stmt.SelectExprs {

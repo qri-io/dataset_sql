@@ -310,7 +310,7 @@ func buildResultStructure(stmt *Select, store datastore.Datastore, resources map
 		structures[name] = st
 	}
 
-	result, err = ResultStructure(stmt, structures)
+	result, err = ResultStructure(stmt, structures, opts)
 	if err != nil {
 		return
 	}
