@@ -42,7 +42,6 @@ func TestSelectFields(t *testing.T) {
 		Data:      datastore.NewKey("aData"),
 		Structure: datastore.NewKey("aStruct"),
 	}
-	// a.Path = datastore.NewKey("aData")
 
 	bStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
@@ -58,9 +57,7 @@ func TestSelectFields(t *testing.T) {
 		Data:      datastore.NewKey("bData"),
 		Structure: datastore.NewKey("bStruct"),
 	}
-	// b.Path = datastore.NewKey("bData")
 
-	// ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, dsTwo}, nil)
 	store := datastore.NewMapDatastore()
 	store.Put(datastore.NewKey("a"), a)
 	store.Put(datastore.NewKey("b"), b)
@@ -72,15 +69,17 @@ func TestSelectFields(t *testing.T) {
 	cases := []execTestCase{
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created, title, views, rating, notes from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		// {"select created from a limit 5", nil, []*dataset.Field{created}, 5},
-		// {"select a.created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
-		// {"select * from a where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		// {"select * from b where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
-		// {"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		// {"select * from a, b", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
-		// {"select * from a, b where a.notes = b.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
-		// {"select * from test.select_test as a, test.select_test_two as b where a->created = b->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 10},
-		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
+		{"select created from a limit 5", nil, []*dataset.Field{created}, 5},
+		{"select a.created from a limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select * from a where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from b where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		{"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from a, b", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
+		{"select * from a, b where a.notes = b.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+
+		// TODO - need to check result structure name on this one:
+		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2},
+		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
 	ns := map[string]datastore.Key{
@@ -247,8 +246,8 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 
 		if len(results.Schema.Fields) != len(c.fields) {
 			t.Errorf("case %d field length mismatch. expected: %d, got: %d", i, len(c.fields), len(results.Schema.Fields))
-			fmt.Println(c.fields)
-			fmt.Println(results.Schema.Fields)
+			// fmt.Println(c.fields)
+			fmt.Println(results.Schema.FieldNames())
 			continue
 		}
 

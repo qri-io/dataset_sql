@@ -66,7 +66,9 @@ func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *E
 		return
 	}
 
-	generateResultSchema(stmt, from, result)
+	// fmt.Println(result.Schema.FieldNames())
+	// generateResultSchema(stmt, from, result)
+	// fmt.Println(result.Schema)
 
 	// TODO... Sort each table by select sort criteria here?
 	// TODO - column ambiguity check

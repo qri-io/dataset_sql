@@ -81,12 +81,12 @@ EXPRESSIONS:
 	for _, node := range stmt.SelectExprs {
 		switch sexpr := node.(type) {
 		case *StarExpr:
-			if sexpr.TableName.String() != "" {
-				r := resources[sexpr.TableName.String()]
-				if r == nil {
-					return nil, ErrUnrecognizedReference(sexpr.TableName.String())
+			name := sexpr.TableName.String()
+			for tableName, r := range resources {
+				// we add fields if the names match, or if no name is specified
+				if tableName == name || name == "" {
+					st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
 				}
-				st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
 			}
 		case *AliasedExpr:
 			switch exp := sexpr.Expr.(type) {
