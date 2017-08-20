@@ -3,8 +3,8 @@ package dataset_sql
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"github.com/ipfs/go-datastore"
-	// "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
 	// "io/ioutil"
 	// "path/filepath"
 	"testing"
@@ -28,34 +28,43 @@ func TestSelectFields(t *testing.T) {
 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-	a := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+	aStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	aData := generate.RandomData(a, func(o *generate.RandomDataOpts) {
+	aData := generate.RandomData(aStruct, func(o *generate.RandomDataOpts) {
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
 	})
-	a.Path = datastore.NewKey("aData")
 
-	b := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+	a := &dataset.Dataset{
+		Data:      datastore.NewKey("aData"),
+		Structure: datastore.NewKey("aStruct"),
+	}
+
+	bStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	bData := generate.RandomData(b, func(o *generate.RandomDataOpts) {
+	bData := generate.RandomData(bStruct, func(o *generate.RandomDataOpts) {
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
 	})
-	b.Path = datastore.NewKey("bData")
 
-	// ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, dsTwo}, nil)
+	b := &dataset.Dataset{
+		Data:      datastore.NewKey("bData"),
+		Structure: datastore.NewKey("bStruct"),
+	}
+
 	store := datastore.NewMapDatastore()
 	store.Put(datastore.NewKey("a"), a)
 	store.Put(datastore.NewKey("b"), b)
-	store.Put(a.Path, aData)
-	store.Put(b.Path, bData)
+	store.Put(a.Structure, aStruct)
+	store.Put(a.Data, aData)
+	store.Put(b.Structure, bStruct)
+	store.Put(b.Data, bData)
 
 	cases := []execTestCase{
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
@@ -67,8 +76,10 @@ func TestSelectFields(t *testing.T) {
 		{"select * from b where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from a, b", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
 		{"select * from a, b where a.notes = b.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
-		// {"select * from test.select_test as a, test.select_test_two as b where a->created = b->created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 10},
-		// {"select 1 from select_test", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
+
+		// TODO - need to check result structure name on this one:
+		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2},
+		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
 	ns := map[string]datastore.Key{
@@ -134,7 +145,7 @@ func TestSelectFields(t *testing.T) {
 // 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
 // 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-// 	ds := generate.RandomResource(func(o *generate.RandomResourceOpts) {
+// 	ds := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 // 		// o.Name = "null_values_test"
 // 		// o.Address = dataset.NewAddress("test.null_values_test")
 // 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
@@ -207,11 +218,17 @@ func TestSelectFields(t *testing.T) {
 
 func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
-		q := &dataset.Query{
-			Syntax:    "sql",
-			Resources: ns,
-			Statement: c.statement,
+
+		ds := &dataset.Dataset{
+			Query:       c.statement,
+			QuerySyntax: "sql",
+			Resources:   ns,
 		}
+		// q := &dataset.Query{
+		// 	Syntax:    "sql",
+		// 	Resources: ns,
+		// 	Statement: c.statement,
+		// }
 
 		// stmt, err := Parse(c.statement)
 		// if err != nil {
@@ -219,7 +236,7 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 		// 	continue
 		// }
 
-		results, data, err := ExecQuery(store, q, func(o *ExecOpt) {
+		results, data, err := Exec(store, ds, func(o *ExecOpt) {
 			o.Format = dataset.CsvDataFormat
 		})
 		if err != c.expect {
@@ -229,6 +246,8 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 
 		if len(results.Schema.Fields) != len(c.fields) {
 			t.Errorf("case %d field length mismatch. expected: %d, got: %d", i, len(c.fields), len(results.Schema.Fields))
+			// fmt.Println(c.fields)
+			fmt.Println(results.Schema.FieldNames())
 			continue
 		}
 
