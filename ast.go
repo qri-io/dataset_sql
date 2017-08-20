@@ -114,7 +114,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	Exec(datastore.Datastore, *dataset.Query, map[string]*dataset.StructuredData, *ExecOpt) (*dataset.Structure, []byte, error)
+	exec(datastore.Datastore, *dataset.Dataset, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -143,7 +143,7 @@ type SelectStatement interface {
 	iInsertRows()
 	AddOrder(*Order)
 	SetLimit(*Limit)
-	Exec(datastore.Datastore, *dataset.Query, map[string]*dataset.StructuredData, *ExecOpt) (*dataset.Structure, []byte, error)
+	exec(datastore.Datastore, *dataset.Dataset, *ExecOpt) (*dataset.Structure, []byte, error)
 	References() []string
 	SQLNode
 }

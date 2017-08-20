@@ -24,7 +24,7 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 	return o
 }
 
-func ExecQuery(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, output *dataset.Structure, options ...func(o *ExecOpt)) (resource *dataset.Structure, results []byte, err error) {
+func Exec(store datastore.Datastore, ds *dataset.Dataset, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
 	opts := &ExecOpt{
 		Format: dataset.CsvDataFormat,
 	}
@@ -33,19 +33,19 @@ func ExecQuery(store datastore.Datastore, q *dataset.Query, resources map[string
 		option(opts)
 	}
 
-	if q.Syntax != "sql" {
-		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
+	if ds.QuerySyntax != "sql" {
+		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", ds.QuerySyntax)
 	}
 
-	stmt, err := Parse(q.Statement)
+	stmt, err := Parse(ds.Query)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stmt.Exec(store, q, resources, opts)
+	return stmt.exec(store, ds, opts)
 }
 
-func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
+func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -56,7 +56,7 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, resources 
 	// left like this it'll chew up memory
 	var writtenRows [][][]byte
 
-	from, result, err := buildResultStructure(stmt, store, q, resources, opts)
+	from, result, err := buildResultStructure(stmt, store, ds.Resources, opts)
 	if err != nil {
 		return
 	}
@@ -173,37 +173,37 @@ func (stmt *Select) Exec(store datastore.Datastore, q *dataset.Query, resources 
 	return
 }
 
-func (node *Union) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Union) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-func (node *Insert) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Insert) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-func (node *Update) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Update) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-func (node *Delete) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Delete) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-func (node *Set) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Set) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-func (node *DDL) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *DDL) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-func (node *ParenSelect) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *ParenSelect) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ParenSelect statements")
 }
-func (node *Show) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Show) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Show statements")
 }
-func (node *Use) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Use) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Use statements")
 }
-func (node *OtherRead) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherRead) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherRead statements")
 }
-func (node *OtherAdmin) Exec(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherAdmin) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
@@ -274,17 +274,23 @@ type StructureData struct {
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
 // TODO - refactor this out
-func buildResultStructure(stmt *Select, store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
+func buildResultStructure(stmt *Select, store datastore.Datastore, resources map[string]datastore.Key, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
 	from = map[string]*StructureData{}
 	structures := map[string]*dataset.Structure{}
-	for key, sd := range resources {
-		st, e := dataset.LoadStructure(store, sd.Structure)
+	for name, dspath := range resources {
+		ds, e := dataset.LoadDataset(store, dspath)
 		if e != nil {
 			err = e
 			return
 		}
 
-		datai, e := store.Get(sd.Data)
+		st, e := ds.LoadStructure(store)
+		if e != nil {
+			err = e
+			return
+		}
+
+		datai, e := store.Get(ds.Data)
 		if e != nil {
 			err = e
 			return
@@ -292,16 +298,16 @@ func buildResultStructure(stmt *Select, store datastore.Datastore, q *dataset.Qu
 
 		data, ok := datai.([]byte)
 		if !ok {
-			err = fmt.Errorf("data for resource %s is not a byte slice. path: %s", key, sd.Data)
+			err = fmt.Errorf("data for resource %s is not a byte slice. path: %s", name, ds.Data)
 			return
 		}
 
-		from[key] = &StructureData{
+		from[name] = &StructureData{
 			Structure: st,
 			Data:      data,
 		}
 
-		structures[key] = st
+		structures[name] = st
 	}
 
 	result, err = ResultStructure(stmt, structures)

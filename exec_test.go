@@ -27,34 +27,46 @@ func TestSelectFields(t *testing.T) {
 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
 
-	a := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
+	aStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	aData := generate.RandomData(a, func(o *generate.RandomDataOpts) {
+	aData := generate.RandomData(aStruct, func(o *generate.RandomDataOpts) {
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
 	})
-	a.Path = datastore.NewKey("aData")
 
-	b := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
+	a := &dataset.Dataset{
+		Data:      datastore.NewKey("aData"),
+		Structure: datastore.NewKey("aStruct"),
+	}
+	// a.Path = datastore.NewKey("aData")
+
+	bStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
 		o.Format = dataset.CsvDataFormat
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	bData := generate.RandomData(b, func(o *generate.RandomDataOpts) {
+	bData := generate.RandomData(bStruct, func(o *generate.RandomDataOpts) {
 		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
 		o.NumRandRecords = 9
 	})
-	b.Path = datastore.NewKey("bData")
+
+	b := &dataset.Dataset{
+		Data:      datastore.NewKey("bData"),
+		Structure: datastore.NewKey("bStruct"),
+	}
+	// b.Path = datastore.NewKey("bData")
 
 	// ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, dsTwo}, nil)
 	store := datastore.NewMapDatastore()
 	store.Put(datastore.NewKey("a"), a)
 	store.Put(datastore.NewKey("b"), b)
-	store.Put(a.Path, aData)
-	store.Put(b.Path, bData)
+	store.Put(a.Structure, aStruct)
+	store.Put(a.Data, aData)
+	store.Put(b.Structure, bStruct)
+	store.Put(b.Data, bData)
 
 	cases := []execTestCase{
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
@@ -207,14 +219,16 @@ func TestSelectFields(t *testing.T) {
 func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 
-		// ds := &dataset.Dataset {
-		// 	Query
-		// }
-		q := &dataset.Query{
-			Syntax:    "sql",
-			Resources: ns,
-			Statement: c.statement,
+		ds := &dataset.Dataset{
+			Query:       c.statement,
+			QuerySyntax: "sql",
+			Resources:   ns,
 		}
+		// q := &dataset.Query{
+		// 	Syntax:    "sql",
+		// 	Resources: ns,
+		// 	Statement: c.statement,
+		// }
 
 		// stmt, err := Parse(c.statement)
 		// if err != nil {
@@ -222,7 +236,7 @@ func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []ex
 		// 	continue
 		// }
 
-		results, data, err := ExecQuery(store, q, func(o *ExecOpt) {
+		results, data, err := Exec(store, ds, func(o *ExecOpt) {
 			o.Format = dataset.CsvDataFormat
 		})
 		if err != c.expect {

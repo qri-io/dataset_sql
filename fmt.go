@@ -54,16 +54,16 @@ func Format(sql string) (string, Statement, map[string]string, error) {
 	return buf.String(), stmt, remap, nil
 }
 
-// algebraicStructures reads a map of tablename : Structure, and generates an abstract form of that same map,
+// abstractStructures reads a map of tablename : Structure, and generates an abstract form of that same map,
 // and a map from concrete name : abstract name
-func algebraicStructures(concrete map[string]*dataset.Structure) (algStructures map[string]*dataset.Structure, remap map[string]string) {
+func abstractStructures(concrete map[string]*dataset.Structure) (algStructures map[string]*dataset.Structure, remap map[string]string) {
 	algStructures = map[string]*dataset.Structure{}
 	remap = map[string]string{}
 
 	i := 0
 	for name, str := range concrete {
 		an := abstractNames[i]
-		algStructures[an] = str.Algebraic()
+		algStructures[an] = str.Abstract()
 		remap[name] = an
 		i++
 	}
