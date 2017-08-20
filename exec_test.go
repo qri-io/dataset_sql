@@ -206,6 +206,10 @@ func TestSelectFields(t *testing.T) {
 
 func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
+
+		// ds := &dataset.Dataset {
+		// 	Query
+		// }
 		q := &dataset.Query{
 			Syntax:    "sql",
 			Resources: ns,

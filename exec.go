@@ -24,12 +24,6 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 	return o
 }
 
-type QueryInput struct {
-	Query     *dataset.Query
-	Resources map[string]*dataset.StructuredData
-	// Output *dataset.Structure
-}
-
 func ExecQuery(store datastore.Datastore, q *dataset.Query, resources map[string]*dataset.StructuredData, output *dataset.Structure, options ...func(o *ExecOpt)) (resource *dataset.Structure, results []byte, err error) {
 	opts := &ExecOpt{
 		Format: dataset.CsvDataFormat,
