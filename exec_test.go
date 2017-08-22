@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/ipfs/go-datastore"
+	"github.com/qri-io/castore"
 	// "io/ioutil"
 	// "path/filepath"
 	"testing"
@@ -40,7 +41,7 @@ func TestSelectFields(t *testing.T) {
 
 	a := &dataset.Dataset{
 		Data:      datastore.NewKey("aData"),
-		Structure: datastore.NewKey("aStruct"),
+		Structure: aStruct,
 	}
 
 	bStruct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
@@ -55,16 +56,34 @@ func TestSelectFields(t *testing.T) {
 
 	b := &dataset.Dataset{
 		Data:      datastore.NewKey("bData"),
-		Structure: datastore.NewKey("bStruct"),
+		Structure: bStruct,
 	}
 
-	store := datastore.NewMapDatastore()
-	store.Put(datastore.NewKey("a"), a)
-	store.Put(datastore.NewKey("b"), b)
-	store.Put(a.Structure, aStruct)
-	store.Put(a.Data, aData)
-	store.Put(b.Structure, bStruct)
-	store.Put(b.Data, bData)
+	// store := datastore.NewMapDatastore()
+	store := castore.NewMemstore()
+	aDataPath, err := store.Put(aData)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	a.Data = aDataPath
+	apath, err := a.Save(store)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	bDataPath, err := store.Put(bData)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	b.Data = bDataPath
+	bpath, err := b.Save(store)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	cases := []execTestCase{
 		{"select * from a", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
@@ -82,9 +101,20 @@ func TestSelectFields(t *testing.T) {
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
-	ns := map[string]datastore.Key{
-		"a": datastore.NewKey("a"),
-		"b": datastore.NewKey("b"),
+	ads, err := dataset.LoadDataset(store, apath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	bds, err := dataset.LoadDataset(store, bpath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ns := map[string]*dataset.Dataset{
+		"a": ads,
+		"b": bds,
 	}
 
 	runCases(store, ns, cases, t)
@@ -216,11 +246,11 @@ func TestSelectFields(t *testing.T) {
 // 	return ds, nil
 // }
 
-func runCases(store datastore.Datastore, ns map[string]datastore.Key, cases []execTestCase, t *testing.T) {
+func runCases(store castore.Datastore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 
 		ds := &dataset.Dataset{
-			Query:       c.statement,
+			QueryString: c.statement,
 			QuerySyntax: "sql",
 			Resources:   ns,
 		}

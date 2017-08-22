@@ -5,7 +5,8 @@ import (
 	"encoding/csv"
 	"fmt"
 
-	"github.com/ipfs/go-datastore"
+	"github.com/qri-io/castore"
+	// "github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/load"
 )
@@ -24,7 +25,7 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 	return o
 }
 
-func Exec(store datastore.Datastore, ds *dataset.Dataset, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
+func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
 	opts := &ExecOpt{
 		Format: dataset.CsvDataFormat,
 	}
@@ -37,7 +38,7 @@ func Exec(store datastore.Datastore, ds *dataset.Dataset, options ...func(o *Exe
 		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", ds.QuerySyntax)
 	}
 
-	stmt, err := Parse(ds.Query)
+	stmt, err := Parse(ds.QueryString)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,7 +46,7 @@ func Exec(store datastore.Datastore, ds *dataset.Dataset, options ...func(o *Exe
 	return stmt.exec(store, ds, opts)
 }
 
-func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
+func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -93,7 +94,7 @@ func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *E
 	added := int64(0)
 	skipped := int64(0)
 
-	data, lengths, err := buildDatabase(store, from, result)
+	data, lengths, err := buildDatabase(from, result)
 	if err != nil {
 		return result, nil, err
 	}
@@ -180,37 +181,37 @@ func (stmt *Select) exec(store datastore.Datastore, ds *dataset.Dataset, opts *E
 	return
 }
 
-func (node *Union) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Union) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-func (node *Insert) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Insert) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-func (node *Update) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Update) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-func (node *Delete) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Delete) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-func (node *Set) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Set) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-func (node *DDL) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *DDL) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-func (node *ParenSelect) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *ParenSelect) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ParenSelect statements")
 }
-func (node *Show) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Show) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Show statements")
 }
-func (node *Use) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Use) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Use statements")
 }
-func (node *OtherRead) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherRead) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherRead statements")
 }
-func (node *OtherAdmin) exec(store datastore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherAdmin) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
@@ -281,25 +282,26 @@ type StructureData struct {
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
 // TODO - refactor this out
-func buildResultStructure(stmt *Select, store datastore.Datastore, resources map[string]datastore.Key, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
+func buildResultStructure(stmt *Select, store castore.Datastore, resources map[string]*dataset.Dataset, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
 	from = map[string]*StructureData{}
 	structures := map[string]*dataset.Structure{}
-	for name, dspath := range resources {
-		ds, e := dataset.LoadDataset(store, dspath)
-		if e != nil {
-			err = e
-			return
-		}
+	for name, ds := range resources {
+		// ds, e := dataset.LoadDataset(store, dspath)
+		// if e != nil {
+		// 	err = fmt.Errorf("error loading dataset: %s: %s", dspath.String(), e.Error())
+		// 	return
+		// }
 
-		st, e := ds.LoadStructure(store)
-		if e != nil {
-			err = e
-			return
-		}
+		st := ds.Structure
+		// st, e := ds.LoadStructure(store)
+		// if e != nil {
+		// 	err = fmt.Errorf("error loading structure: %s: %s", ds.Structure, e.Error())
+		// 	return
+		// }
 
 		datai, e := store.Get(ds.Data)
 		if e != nil {
-			err = e
+			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
 			return
 		}
 
@@ -326,7 +328,7 @@ func buildResultStructure(stmt *Select, store datastore.Datastore, resources map
 }
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
-// func buildResultStructure(stmt *Select, store datastore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
+// func buildResultStructure(stmt *Select, store castore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
 
 // 	// buf := NewTrackedBuffer(nil)
 // 	// stmt.Format(buf)
@@ -427,12 +429,8 @@ func buildProjection(selectors SelectExprs, from map[string]*StructureData) (pro
 	return
 }
 
-func buildDatabase(store datastore.Datastore, from map[string]*StructureData, ds *dataset.Structure) (data [][][][]byte, lengths []int, err error) {
+func buildDatabase(from map[string]*StructureData, ds *dataset.Structure) (data [][][][]byte, lengths []int, err error) {
 	for _, resourceData := range from {
-		// dsData, err := load.AllRows(store, resourceData.Structure)
-		// if err != nil {
-		// 	return nil, nil, err
-		// }
 		dsData, err := load.FormatRows(resourceData.Structure, resourceData.Data)
 		if err != nil {
 			return nil, nil, err
