@@ -60,7 +60,7 @@ func TestSelectFields(t *testing.T) {
 	}
 
 	// store := datastore.NewMapDatastore()
-	store := castore.NewMemstore()
+	store := castore.NewMapstore()
 	aDataPath, err := store.Put(aData)
 	if err != nil {
 		t.Error(err)

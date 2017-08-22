@@ -299,15 +299,9 @@ func buildResultStructure(stmt *Select, store castore.Datastore, resources map[s
 		// 	return
 		// }
 
-		datai, e := store.Get(ds.Data)
+		data, e := store.Get(ds.Data)
 		if e != nil {
 			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
-			return
-		}
-
-		data, ok := datai.([]byte)
-		if !ok {
-			err = fmt.Errorf("data for resource %s is not a byte slice. path: %s", name, ds.Data)
 			return
 		}
 
