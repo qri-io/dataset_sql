@@ -2,8 +2,8 @@ package dataset_sql
 
 import (
 	"bytes"
-	"encoding/csv"
 	"fmt"
+	"github.com/qri-io/dataset/writers"
 
 	"github.com/qri-io/castore"
 	// "github.com/ipfs/go-datastore"
@@ -29,7 +29,6 @@ func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecO
 	opts := &ExecOpt{
 		Format: dataset.CsvDataFormat,
 	}
-
 	for _, option := range options {
 		option(opts)
 	}
@@ -38,22 +37,98 @@ func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecO
 		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", ds.QuerySyntax)
 	}
 
-	stmt, err := Parse(ds.QueryString)
+	concreteStmt, err := Parse(ds.QueryString)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = RemoveUnusedReferences(concreteStmt, ds)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return stmt.exec(store, ds, opts)
+	strs := map[string]*dataset.Structure{}
+	for name, ds := range ds.Resources {
+		strs[name] = ds.Structure
+	}
+
+	ds.Structure, err = ResultStructure(concreteStmt, strs, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, stmt, remap, err := Format(ds.QueryString)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ds.Query = &dataset.Query{
+		Structures: map[string]*dataset.Structure{},
+	}
+
+	// collect table references
+	for mapped, ref := range remap {
+		// for i, adr := range stmt.References() {
+		if ds.Resources[ref] == nil {
+			return nil, nil, fmt.Errorf("couldn't find resource for table name: %s", ref)
+		}
+
+		ds.Query.Structures[mapped] = ds.Resources[ref].Structure.Abstract()
+	}
+
+	// This is a basic-column name rewriter from concrete to abstract
+	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
+		if ae, ok := node.(*AliasedExpr); ok && ae != nil {
+			if cn, ok := ae.Expr.(*ColName); ok && cn != nil {
+				// TODO - check qualifier to avoid extra loopage
+				// if cn.Qualifier.String() != "" {
+				// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
+				// 		if cn.Name.String() ==
+				// 	}
+				// }
+				for con, r := range ds.Resources {
+					for i, f := range r.Structure.Schema.Fields {
+						if f.Name == cn.Name.String() {
+							for mapped, ref := range remap {
+								if ref == con {
+									fmt.Println(ref, con, mapped)
+									// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
+									// fmt.Println(String(cn))
+									// fmt.Println(String(&ColName{
+									// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+									// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
+									// }))
+
+									ae.Expr = &ColName{
+										Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+										Qualifier: TableName{Name: NewTableIdent(mapped)},
+									}
+								}
+							}
+							return false, nil
+						}
+					}
+				}
+
+			}
+		}
+		return true, nil
+	})
+
+	ds.Query.Statement = String(stmt)
+
+	ds.Query.Structure, err = ResultStructure(stmt, ds.Query.Structures, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("exec query:", ds.QueryString, " -> ", ds.Query.Statement)
+
+	return stmt.exec(store, ds, remap, opts)
 }
 
-func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
+func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
-	}
-
-	err = RemoveUnusedReferences(stmt, ds)
-	if err != nil {
-		return nil, nil, err
 	}
 
 	// TODO - This is a total hack to support DISTINCT statements for now
@@ -62,9 +137,24 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, opts *Exe
 	// left like this it'll chew up memory
 	var writtenRows [][][]byte
 
-	from, result, err := buildResultStructure(stmt, store, ds.Resources, opts)
-	if err != nil {
-		return
+	// from, result, err := buildResultStructure(stmt, store, ds.Resources, opts)
+	// if err != nil {
+	// 	return
+	// }
+
+	result = ds.Query.Structure
+	from := map[string]*StructureData{}
+	for abst, con := range remap {
+		data, e := store.Get(ds.Resources[con].Data)
+		if e != nil {
+			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
+			return
+		}
+
+		from[abst] = &StructureData{
+			Structure: ds.Query.Structures[abst],
+			Data:      data,
+		}
 	}
 
 	// fmt.Println(result.Schema.FieldNames())
@@ -84,7 +174,7 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, opts *Exe
 		return result, nil, err
 	}
 
-	w := newResultWriter(result)
+	w := writers.NewWriter(ds.Structure)
 
 	limit, offset, err := stmt.Limit.Counts()
 	if err != nil {
@@ -177,41 +267,43 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, opts *Exe
 
 	}
 
+	result = ds.Structure
+	fmt.Println("executed query", ds.QueryString)
 	resultBytes = w.Bytes()
 	return
 }
 
-func (node *Union) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Union) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-func (node *Insert) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Insert) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-func (node *Update) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Update) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-func (node *Delete) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Delete) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-func (node *Set) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Set) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-func (node *DDL) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *DDL) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-func (node *ParenSelect) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *ParenSelect) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ParenSelect statements")
 }
-func (node *Show) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Show) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Show statements")
 }
-func (node *Use) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Use) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Use statements")
 }
-func (node *OtherRead) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherRead) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherRead statements")
 }
-func (node *OtherAdmin) exec(store castore.Datastore, ds *dataset.Dataset, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherAdmin) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
@@ -286,18 +378,7 @@ func buildResultStructure(stmt *Select, store castore.Datastore, resources map[s
 	from = map[string]*StructureData{}
 	structures := map[string]*dataset.Structure{}
 	for name, ds := range resources {
-		// ds, e := dataset.LoadDataset(store, dspath)
-		// if e != nil {
-		// 	err = fmt.Errorf("error loading dataset: %s: %s", dspath.String(), e.Error())
-		// 	return
-		// }
-
 		st := ds.Structure
-		// st, e := ds.LoadStructure(store)
-		// if e != nil {
-		// 	err = fmt.Errorf("error loading structure: %s: %s", ds.Structure, e.Error())
-		// 	return
-		// }
 
 		data, e := store.Get(ds.Data)
 		if e != nil {
@@ -320,6 +401,28 @@ func buildResultStructure(stmt *Select, store castore.Datastore, resources map[s
 
 	return
 }
+
+// func dataStructures(stmt *Select, store castore.Datastore, ds *dataset.Dataset, mapping map[string]string) (from map[string]*StructureData, err error) {
+// 	from = map[string]*StructureData{}
+// 	for name, ds := range ds.resources {
+// 		st := ds.Structure
+
+// 		data, e := store.Get(ds.Data)
+// 		if e != nil {
+// 			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
+// 			return
+// 		}
+
+// 		from[name] = &StructureData{
+// 			Structure: st,
+// 			Data:      data,
+// 		}
+
+// 		structures[name] = st
+// 	}
+
+// 	return
+// }
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
 // func buildResultStructure(stmt *Select, store castore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
@@ -580,48 +683,4 @@ func jumpRow(indicies, lengths []int) bool {
 		}
 	}
 	return false
-}
-
-type resultWriter interface {
-	WriteRow([][]byte) error
-	Close() error
-	Bytes() []byte
-}
-
-func newResultWriter(result *dataset.Structure) resultWriter {
-	switch result.Format {
-	case dataset.CsvDataFormat:
-		buf := &bytes.Buffer{}
-		return &csvResultWriter{
-			buf:    buf,
-			Writer: csv.NewWriter(buf),
-		}
-	case dataset.JsonDataFormat:
-		return NewJsonWriter(result, true)
-	case dataset.JsonArrayDataFormat:
-		return NewJsonWriter(result, false)
-	}
-	return nil
-}
-
-type csvResultWriter struct {
-	buf *bytes.Buffer
-	*csv.Writer
-}
-
-func (cw *csvResultWriter) WriteRow(row [][]byte) error {
-	strRow := make([]string, len(row))
-	for i, col := range row {
-		strRow[i] = string(col)
-	}
-	return cw.Write(strRow)
-}
-
-func (cw *csvResultWriter) Close() error {
-	cw.Flush()
-	return nil
-}
-
-func (cw *csvResultWriter) Bytes() []byte {
-	return cw.buf.Bytes()
 }

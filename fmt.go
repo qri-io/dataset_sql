@@ -10,6 +10,19 @@ import (
 // TODO - lololololololol
 var abstractNames = []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"}
 
+func StatementTableNames(sql string) ([]string, error) {
+	stmt, err := Parse(sql)
+	if err != nil {
+		return nil, err
+	}
+
+	if sel, ok := stmt.(*Select); ok {
+		return sel.From.TableNames(), nil
+	}
+
+	return nil, fmt.Errorf("unsupported statement type: %s", String(stmt))
+}
+
 // Format places an sql statement in it's standard form.
 // This will be *heavily* refined, improved, and moved into a
 // separate package
@@ -74,11 +87,16 @@ func abstractStructures(concrete map[string]*dataset.Structure) (algStructures m
 
 // ResultStructure determines the structure of the output for a select statement
 // and a provided resource table map
-func ResultStructure(stmt *Select, resources map[string]*dataset.Structure, opts *ExecOpt) (*dataset.Structure, error) {
+func ResultStructure(stmt Statement, resources map[string]*dataset.Structure, opts *ExecOpt) (*dataset.Structure, error) {
+	sel, ok := stmt.(*Select)
+	if !ok {
+		return nil, NotYetImplemented("statements other than select")
+	}
+
 	st := &dataset.Structure{Format: opts.Format, Schema: &dataset.Schema{}}
 
 EXPRESSIONS:
-	for _, node := range stmt.SelectExprs {
+	for _, node := range sel.SelectExprs {
 		switch sexpr := node.(type) {
 		case *StarExpr:
 			name := sexpr.TableName.String()
@@ -156,9 +174,14 @@ EXPRESSIONS:
 // RemoveUnusedReferences sets ds.Resources to a new map that that contains
 // only datasets refrerenced in the provided select statement,
 // it errors if it cannot find a named dataset from the provided ds.Resources map.
-func RemoveUnusedReferences(stmt *Select, ds *dataset.Dataset) error {
+func RemoveUnusedReferences(stmt Statement, ds *dataset.Dataset) error {
+	sel, ok := stmt.(*Select)
+	if !ok {
+		return NotYetImplemented("statements other than select")
+	}
+
 	resources := map[string]*dataset.Dataset{}
-	for _, name := range stmt.From.TableNames() {
+	for _, name := range sel.From.TableNames() {
 		datas := ds.Resources[name]
 		if datas == nil {
 			return ErrUnrecognizedReference(name)
