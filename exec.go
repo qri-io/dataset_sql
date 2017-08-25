@@ -77,37 +77,37 @@ func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecO
 
 	// This is a basic-column name rewriter from concrete to abstract
 	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
-		if ae, ok := node.(*AliasedExpr); ok && ae != nil {
-			if cn, ok := ae.Expr.(*ColName); ok && cn != nil {
-				// TODO - check qualifier to avoid extra loopage
-				// if cn.Qualifier.String() != "" {
-				// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
-				// 		if cn.Name.String() ==
-				// 	}
-				// }
-				for con, r := range ds.Resources {
-					for i, f := range r.Structure.Schema.Fields {
-						if f.Name == cn.Name.String() {
-							for mapped, ref := range remap {
-								if ref == con {
-									fmt.Println(ref, con, mapped)
-									// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
-									// fmt.Println(String(cn))
-									// fmt.Println(String(&ColName{
-									// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
-									// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
-									// }))
+		// if ae, ok := node.(*AliasedExpr); ok && ae != nil {
+		if cn, ok := node.(*ColName); ok && cn != nil {
+			// TODO - check qualifier to avoid extra loopage
+			// if cn.Qualifier.String() != "" {
+			// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
+			// 		if cn.Name.String() ==
+			// 	}
+			// }
+			for con, r := range ds.Resources {
+				for i, f := range r.Structure.Schema.Fields {
+					if f.Name == cn.Name.String() {
+						for mapped, ref := range remap {
+							if ref == con {
+								// fmt.Println(ref, con, mapped)
+								// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
+								// fmt.Println(String(cn))
+								// fmt.Println(String(&ColName{
+								// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+								// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
+								// }))
 
-									ae.Expr = &ColName{
-										Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
-										Qualifier: TableName{Name: NewTableIdent(mapped)},
-									}
+								*cn = ColName{
+									Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+									Qualifier: TableName{Name: NewTableIdent(mapped)},
 								}
 							}
-							return false, nil
 						}
+						return false, nil
 					}
 				}
+				// }
 
 			}
 		}
@@ -120,8 +120,6 @@ func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecO
 	if err != nil {
 		return nil, nil, err
 	}
-
-	fmt.Println("exec query:", ds.QueryString, " -> ", ds.Query.Statement)
 
 	return stmt.exec(store, ds, remap, opts)
 }
@@ -156,10 +154,6 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map
 			Data:      data,
 		}
 	}
-
-	// fmt.Println(result.Schema.FieldNames())
-	// generateResultSchema(stmt, from, result)
-	// fmt.Println(result.Schema)
 
 	// TODO... Sort each table by select sort criteria here?
 	// TODO - column ambiguity check
@@ -267,8 +261,8 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map
 
 	}
 
+	// TODO - rename / deref result var
 	result = ds.Structure
-	fmt.Println("executed query", ds.QueryString)
 	resultBytes = w.Bytes()
 	return
 }
