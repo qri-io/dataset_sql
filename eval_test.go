@@ -65,7 +65,9 @@ func TestEvalParenExpr(t *testing.T) {
 func TestEvalComparisonExpr(t *testing.T) {
 	row := [][]byte{}
 	cases := []evalTestCase{
-	//{&ComparisonExpr{}, QueryBoolType, falseB, nil},
+		{&ComparisonExpr{Operator: EqualStr, Left: BoolVal(true), Right: BoolVal(true)}, QueryBoolType, trueB, nil},
+		{&ComparisonExpr{Operator: EqualStr, Left: BoolVal(true), Right: BoolVal(false)}, QueryBoolType, falseB, nil},
+		{&ComparisonExpr{Operator: LikeStr, Left: &SQLVal{Type: StrVal, Val: []byte("apples")}, Right: &SQLVal{Type: StrVal, Val: []byte("apples")}}, QueryBoolType, trueB, nil},
 	}
 	runEvalCases(t, row, cases)
 }
