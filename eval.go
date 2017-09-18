@@ -1,6 +1,7 @@
 package dataset_sql
 
 import (
+	"bytes"
 	"fmt"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
 )
@@ -8,19 +9,73 @@ import (
 // map bool to a unsigned 8 bit int
 const QueryBoolType = q.Type_UINT8
 
-// TODO - finish
 func (node *AndExpr) Eval(row [][]byte) (q.Type, []byte, error) {
-	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval AndExpr")
+	lt, lb, err := node.Left.Eval(row)
+	if err != nil {
+		return QueryBoolType, falseB, err
+	}
+	if lt != QueryBoolType {
+		err = fmt.Errorf("non-boolean expression for left side of AND clause")
+		return QueryBoolType, falseB, err
+	}
+	if !bytes.Equal(lb, trueB) {
+		return QueryBoolType, falseB, nil
+	}
+
+	rt, rb, err := node.Right.Eval(row)
+	if err != nil {
+		return QueryBoolType, falseB, err
+	}
+	if rt != QueryBoolType {
+		err = fmt.Errorf("non-boolean expression for right side of AND clause")
+		return QueryBoolType, falseB, err
+	}
+	if !bytes.Equal(rb, trueB) {
+		return QueryBoolType, falseB, nil
+	}
+
+	return QueryBoolType, trueB, nil
 }
 
-// TODO - finish
-func (node OrExpr) Eval(row [][]byte) (q.Type, []byte, error) {
-	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval or expression")
+func (node *OrExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	lt, lb, err := node.Left.Eval(row)
+	if err != nil {
+		return QueryBoolType, falseB, err
+	}
+	if lt != QueryBoolType {
+		err = fmt.Errorf("non-boolean expression for left side of AND clause: %s", String(node))
+		return QueryBoolType, falseB, err
+	}
+	if bytes.Equal(lb, trueB) {
+		return QueryBoolType, trueB, nil
+	}
+
+	rt, rb, err := node.Right.Eval(row)
+	if err != nil {
+		return QueryBoolType, falseB, err
+	}
+	if rt != QueryBoolType {
+		err = fmt.Errorf("non-boolean expression for right side of AND clause: %s", String(node))
+		return QueryBoolType, falseB, err
+	}
+	if bytes.Equal(rb, trueB) {
+		return QueryBoolType, trueB, nil
+	}
+
+	return QueryBoolType, falseB, nil
 }
 
-// TODO - finish
 func (node *NotExpr) Eval(row [][]byte) (q.Type, []byte, error) {
-	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval NotExpr")
+	t, b, e := node.Expr.Eval(row)
+	if t != QueryBoolType {
+		e = fmt.Errorf("non-boolean expression for NOT expression: %s", String(node))
+		return q.Type_NULL_TYPE, nil, e
+	}
+	if bytes.Equal(trueB, b) {
+		return QueryBoolType, falseB, nil
+	}
+	// TODO - strange byte responses
+	return QueryBoolType, trueB, nil
 }
 
 // TODO - finish
