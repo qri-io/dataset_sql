@@ -1,12 +1,47 @@
 package dataset_sql
 
-// import (
-// 	"fmt"
-// 	"github.com/qri-io/dataset"
-// 	"strconv"
-// 	"strings"
-// 	"testing"
-// )
+import (
+	// "fmt"
+	// "github.com/qri-io/dataset"
+	// "strconv"
+	// "strings"
+	st "github.com/qri-io/dataset_sql/sqltypes"
+	"testing"
+)
+
+func TestCompareLike(t *testing.T) {
+	apples, _ := st.BuildValue("apples")
+	app, _ := st.BuildValue("app%")
+	pples, _ := st.BuildValue("%apples")
+	appl, _ := st.BuildValue("%appl%")
+	underscores, _ := st.BuildValue("______")
+	APPLES, _ := st.BuildValue("APPLES")
+
+	cases := []struct {
+		str, expr st.Value
+		expect    bool
+		err       error
+	}{
+		{apples, apples, true, nil},
+		{apples, app, true, nil},
+		{apples, pples, true, nil},
+		{apples, appl, true, nil},
+		{apples, underscores, true, nil},
+		{apples, APPLES, true, nil},
+	}
+
+	for i, c := range cases {
+		got, err := CompareLike(c.str, c.expr)
+		if c.err != err {
+			t.Errorf("case %d error mistmatch. expected: %s, got: %s", i, c.err, err)
+			continue
+		}
+
+		if c.expect != got {
+			t.Errorf("case %d mismatch. %t != %t", i, c.expect, got)
+		}
+	}
+}
 
 // type compare struct {
 // 	stmt     string

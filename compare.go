@@ -1,159 +1,93 @@
 package dataset_sql
 
-// import (
-// 	"fmt"
+import (
+	"bytes"
+	"fmt"
+	"github.com/qri-io/dataset_sql/sqltypes"
+	"regexp"
+	// pb "github.com/qri-io/dataset_sql/vt/proto/query"
+)
 
-// 	"strings"
-// )
+var (
+	reUs     = regexp.MustCompile("_")
+	rePct    = regexp.MustCompile("%")
+	rePctPct = regexp.MustCompile("%%")
+)
 
-// var ErrInvalidComparison = fmt.Errorf("Cannot compare")
+func (node *ComparisonExpr) Compare(row [][]byte) (bool, error) {
+	_, left, err := node.Left.Eval(row)
+	if err != nil {
+		return false, err
+	}
+	_, right, err := node.Right.Eval(row)
+	if err != nil {
+		return false, err
+	}
 
-// // String Comparison
-// func (a StrVal) compare(op string, b ValExpr) (BoolVal, error) {
-// 	result := false
-// 	switch op {
-// 	case EqualStr:
-// 		result = a.String() == b.(StrVal).String()
-// 	case LessThanStr:
-// 		result = a.String() < b.(StrVal).String()
-// 	case GreaterThanStr:
-// 		result = a.String() > b.(StrVal).String()
-// 	case LessEqualStr:
-// 		result = a.String() <= b.(StrVal).String()
-// 	case GreaterEqualStr:
-// 		result = a.String() >= b.(StrVal).String()
-// 	case NotEqualStr:
-// 		result = a.String() != b.(StrVal).String()
-// 	case NullSafeEqualStr:
-// 		result = a.String() != b.(StrVal).String()
-// 	case InStr:
-// 		result = strings.Contains(a.String(), b.(StrVal).String())
-// 	case NotInStr:
-// 		result = !strings.Contains(a.String(), b.(StrVal).String())
-// 	case LikeStr:
-// 		// TODO
-// 		return BoolVal(false), NotYetImplemented("comparing like strings")
-// 	case NotLikeStr:
-// 		// TODO
-// 		return BoolVal(false), NotYetImplemented("comparing not like like strings")
-// 	case RegexpStr:
-// 		// TODO
-// 		return BoolVal(false), NotYetImplemented("comparing regex strings")
-// 	case NotRegexpStr:
-// 		// TODO
-// 		return BoolVal(false), NotYetImplemented("comparing not-regex strings")
-// 	}
+	l, err := sqltypes.BuildValue(left)
+	if err != nil {
+		return false, err
+	}
+	r, err := sqltypes.BuildValue(right)
+	if err != nil {
+		return false, err
+	}
 
-// 	return BoolVal(result), nil
-// }
+	result, err := sqltypes.NullsafeCompare(l, r)
+	if err != nil {
+		return false, err
+	}
 
-// // Numeric Comparison
-// func (a NumVal) compare(op string, b ValExpr) (BoolVal, error) {
-// 	ai := a.Num()
-// 	bi := float64(0)
-// 	if i, ok := b.(NumVal); ok {
-// 		bi = i.Num()
-// 	} else {
-// 		return BoolVal(false), ErrInvalidComparison
-// 	}
+	switch node.Operator {
+	case EqualStr:
+		return result == 0, nil
+	case LessThanStr:
+		return result == -1, nil
+	case GreaterThanStr:
+		return result == 1, nil
+	case LessEqualStr:
+		return result == -1 || result == 0, nil
+	case GreaterEqualStr:
+		return result == 1 || result == 0, nil
+	case NotEqualStr:
+		return result == -1 || result == 1, nil
+	case NullSafeEqualStr:
+		// TODO - work through NSE case
+		return result == -1 || result == 1, nil
+	case InStr:
+		return false, NotYetImplemented("InStr comparison")
+	case NotInStr:
+		return false, NotYetImplemented("NotInStr comparison")
+	case LikeStr:
+		return CompareLike(l, r)
+	case NotLikeStr:
+		return false, NotYetImplemented("NotLikeStr comparison")
+	case RegexpStr:
+		return false, NotYetImplemented("RegexpStr comparison")
+	case NotRegexpStr:
+		return false, NotYetImplemented("NotRegexpStr comparison")
+	case JSONExtractOp:
+		return false, NotYetImplemented("JSONExtractOp comparison")
+	case JSONUnquoteExtractOp:
+		return false, NotYetImplemented("JSONUnquoteExtractOp comparison")
+	}
 
-// 	switch op {
-// 	case EqualStr:
-// 		return BoolVal(ai == bi), nil
-// 	case LessThanStr:
-// 		return BoolVal(ai < bi), nil
-// 	case GreaterThanStr:
-// 		return BoolVal(ai > bi), nil
-// 	case LessEqualStr:
-// 		return BoolVal(ai <= bi), nil
-// 	case GreaterEqualStr:
-// 		return BoolVal(ai >= bi), nil
-// 	case NotEqualStr:
-// 		return BoolVal(ai != bi), nil
-// 	// case NotSafeEqualStr:
-// 	// 	return BoolVal(ai == bi), nil
-// 	// case InStr, NotInStr, LikeStr, NotLikeStr, RegexpStr, NotRegexpStr:
-// 	default:
-// 		return BoolVal(false), ErrInvalidComparison
-// 	}
+	return false, fmt.Errorf("unknown comparison operation: '%s'", node.Operator)
+}
 
-// 	return BoolVal(false), ErrInvalidComparison
-// }
+func CompareLike(str, expr sqltypes.Value) (bool, error) {
+	// TODO - lowercasing here may possibly break user-supplied regexes
+	// need to do a more sophisticated regex detect & replace :/
+	exp := bytes.ToLower(expr.Bytes())
+	exp = reUs.ReplaceAll(exp, []byte("."))
+	exp = rePct.ReplaceAll(exp, []byte("x*"))
+	exp = rePct.ReplaceAll(exp, []byte("x*"))
 
-// // Value Comparison
-// func (a ValArg) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("comparing value arguments")
-// }
+	expre, err := regexp.Compile(string(exp))
+	if err != nil {
+		return false, fmt.Errorf("error parsing like expression: %s", err.Error())
+	}
 
-// // Null Comparison
-// func (a *NullVal) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("comparing null operations")
-// }
-
-// // Bool Comparison
-// func (a BoolVal) compare(op string, b ValExpr) (BoolVal, error) {
-// 	if _, ok := b.(BoolVal); !ok {
-// 		return BoolVal(false), ErrInvalidComparison
-// 	}
-
-// 	switch op {
-// 	case EqualStr:
-// 		return BoolVal(a == b), nil
-// 	case NotEqualStr:
-// 		return BoolVal(a != b), nil
-// 	// case NotSafeEqualStr:
-// 	// 	return BoolVal(a == b), nil
-// 	default:
-// 		return BoolVal(false), ErrInvalidComparison
-// 	}
-// 	return BoolVal(false), ErrInvalidComparison
-// }
-
-// // Column Comparison should never happen, columns should be evaluated into concrete values
-// func (a *ColName) compare(op string, b ValExpr) (BoolVal, error) {
-// 	// switch a.Type {
-// 	// case datatype.String.String():
-
-// 	// case datatype.Integer.String():
-// 	// case datatype.Float.String():
-// 	// case datatype.Date.String():
-// 	// default:
-// 	// 	return BoolVal(false), ErrInvalidComparison
-// 	// }
-// 	return BoolVal(false), ErrInvalidComparison
-// }
-
-// // Tuple Comparison
-// func (a ValTuple) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("tuple comparison operations")
-// }
-
-// // Subquery Comparison
-// func (a *Subquery) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("subquery comparison operations")
-// }
-
-// // List Comparison
-// func (a ListArg) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("list-argument comparison operations")
-// }
-
-// func (a *BinaryExpr) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("binary-value comparison operations")
-// }
-// func (a *UnaryExpr) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("unary expression comparison operations")
-// }
-// func (a *IntervalExpr) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), NotYetImplemented("interval value comparison operations")
-// }
-
-// // functions need to be evaluated before comparison
-// func (a *FuncExpr) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), ErrInvalidComparison
-// }
-
-// // case expressions need to be evaluated before comparison
-// func (a *CaseExpr) compare(op string, b ValExpr) (BoolVal, error) {
-// 	return BoolVal(false), ErrInvalidComparison
-// }
+	comp := bytes.ToLower(str.Bytes())
+	return expre.Match(comp), nil
+}
