@@ -3,12 +3,11 @@ package dataset_sql
 import (
 	"bytes"
 	"fmt"
-	"github.com/qri-io/dataset/writers"
-
-	"github.com/qri-io/castore"
-	// "github.com/ipfs/go-datastore"
+	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/load"
+	"github.com/qri-io/dataset/writers"
+	"io/ioutil"
 )
 
 type ExecOpt struct {
@@ -25,7 +24,7 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 	return o
 }
 
-func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
+func Exec(store cafs.Filestore, ds *dataset.Dataset, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
 	opts := &ExecOpt{
 		Format: dataset.CsvDataFormat,
 	}
@@ -124,7 +123,7 @@ func Exec(store castore.Datastore, ds *dataset.Dataset, options ...func(o *ExecO
 	return stmt.exec(store, ds, remap, opts)
 }
 
-func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
+func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
 	if stmt.OrderBy != nil {
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
@@ -143,7 +142,14 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map
 	result = ds.Query.Structure
 	from := map[string]*StructureData{}
 	for abst, con := range remap {
-		data, e := store.Get(ds.Resources[con].Data)
+		file, e := store.Get(ds.Resources[con].Data)
+		if e != nil {
+			err = fmt.Errorf("error getting dataset file: %s: %s", ds.Data, e.Error())
+			return
+		}
+
+		// TODO - this is a shim for now and should be removed asap
+		data, e := ioutil.ReadAll(file)
 		if e != nil {
 			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
 			return
@@ -267,37 +273,37 @@ func (stmt *Select) exec(store castore.Datastore, ds *dataset.Dataset, remap map
 	return
 }
 
-func (node *Union) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Union) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-func (node *Insert) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Insert) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-func (node *Update) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Update) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-func (node *Delete) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Delete) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-func (node *Set) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Set) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-func (node *DDL) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *DDL) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-func (node *ParenSelect) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *ParenSelect) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("ParenSelect statements")
 }
-func (node *Show) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Show) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Show statements")
 }
-func (node *Use) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *Use) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("Use statements")
 }
-func (node *OtherRead) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherRead) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherRead statements")
 }
-func (node *OtherAdmin) exec(store castore.Datastore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
+func (node *OtherAdmin) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (*dataset.Structure, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }
 
@@ -361,6 +367,7 @@ func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]by
 	return
 }
 
+// TODO - refactor StructureData to take a io.Reader instead of []byte
 type StructureData struct {
 	Structure *dataset.Structure
 	Data      []byte
@@ -368,13 +375,20 @@ type StructureData struct {
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
 // TODO - refactor this out
-func buildResultStructure(stmt *Select, store castore.Datastore, resources map[string]*dataset.Dataset, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
+func buildResultStructure(stmt *Select, store cafs.Filestore, resources map[string]*dataset.Dataset, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
 	from = map[string]*StructureData{}
 	structures := map[string]*dataset.Structure{}
 	for name, ds := range resources {
 		st := ds.Structure
 
-		data, e := store.Get(ds.Data)
+		file, e := store.Get(ds.Data)
+		if e != nil {
+			err = fmt.Errorf("error getting dataset file: %s: %s", ds.Data, e.Error())
+			return
+		}
+
+		// TODO - shim until structured data refactor
+		data, e := ioutil.ReadAll(file)
 		if e != nil {
 			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
 			return
@@ -396,7 +410,7 @@ func buildResultStructure(stmt *Select, store castore.Datastore, resources map[s
 	return
 }
 
-// func dataStructures(stmt *Select, store castore.Datastore, ds *dataset.Dataset, mapping map[string]string) (from map[string]*StructureData, err error) {
+// func dataStructures(stmt *Select, store cafs.Filestore, ds *dataset.Dataset, mapping map[string]string) (from map[string]*StructureData, err error) {
 // 	from = map[string]*StructureData{}
 // 	for name, ds := range ds.resources {
 // 		st := ds.Structure
@@ -419,7 +433,7 @@ func buildResultStructure(stmt *Select, store castore.Datastore, resources map[s
 // }
 
 // Gather all mentioned tables, attaching them to a *dataset.Structure
-// func buildResultStructure(stmt *Select, store castore.Datastore, q *dataset.Query, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
+// func buildResultStructure(stmt *Select, store cafs.Filestore, q *dataset.Query, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
 
 // 	// buf := NewTrackedBuffer(nil)
 // 	// stmt.Format(buf)
@@ -522,7 +536,7 @@ func buildProjection(selectors SelectExprs, from map[string]*StructureData) (pro
 
 func buildDatabase(from map[string]*StructureData, ds *dataset.Structure) (data [][][][]byte, lengths []int, err error) {
 	for _, resourceData := range from {
-		dsData, err := load.FormatRows(resourceData.Structure, resourceData.Data)
+		dsData, err := load.FormatRows(resourceData.Structure, bytes.NewReader(resourceData.Data))
 		if err != nil {
 			return nil, nil, err
 		}

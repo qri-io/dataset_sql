@@ -5,14 +5,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/ipfs/go-datastore"
-	"github.com/qri-io/castore"
-	// "io/ioutil"
-	// "path/filepath"
-	"testing"
-
+	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset/generate"
+	"testing"
 )
 
 type execTestCase struct {
@@ -60,7 +57,7 @@ func TestSelectFields(t *testing.T) {
 	}
 
 	// store := datastore.NewMapDatastore()
-	store := castore.NewMapstore()
+	store := cafs.NewMapstore()
 	t1DataPath, err := store.Put(t1Data)
 	if err != nil {
 		t.Error(err)
@@ -246,7 +243,7 @@ func TestSelectFields(t *testing.T) {
 // 	return ds, nil
 // }
 
-func runCases(store castore.Datastore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
+func runCases(store cafs.Datastore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 
 		ds := &dataset.Dataset{
