@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
+	"github.com/qri-io/cafs/memfs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
+	"github.com/qri-io/dataset/dsfs"
 	"github.com/qri-io/dataset/generate"
 	"testing"
 )
@@ -57,26 +59,26 @@ func TestSelectFields(t *testing.T) {
 	}
 
 	// store := datastore.NewMapDatastore()
-	store := cafs.NewMapstore()
-	t1DataPath, err := store.Put(t1Data)
+	store := memfs.NewMapstore()
+	t1DataPath, err := store.Put(memfs.NewMemfileBytes("t1data", t1Data), true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	t1.Data = t1DataPath
-	t1path, err := t1.Save(store)
+	t1path, err := dsfs.SaveDataset(store, t1, true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	t2DataPath, err := store.Put(t2Data)
+	t2DataPath, err := store.Put(memfs.NewMemfileBytes("t2Data", t2Data), true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	t2.Data = t2DataPath
-	t2path, err := t2.Save(store)
+	t2path, err := dsfs.SaveDataset(store, t2, true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -98,12 +100,12 @@ func TestSelectFields(t *testing.T) {
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
-	t1ds, err := dataset.LoadDataset(store, t1path)
+	t1ds, err := dsfs.LoadDataset(store, t1path)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t2ds, err := dataset.LoadDataset(store, t2path)
+	t2ds, err := dsfs.LoadDataset(store, t2path)
 	if err != nil {
 		t.Error(err)
 		return
@@ -243,7 +245,7 @@ func TestSelectFields(t *testing.T) {
 // 	return ds, nil
 // }
 
-func runCases(store cafs.Datastore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
+func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 
 		ds := &dataset.Dataset{
