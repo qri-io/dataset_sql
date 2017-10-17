@@ -34,16 +34,11 @@ func AggregateFuncs(root SQLNode, schemas map[string]*StructureData) (funcs []Ag
 
 // Function gives the backing function to perform
 func (node *FuncExpr) Function(from map[string]*StructureData) (fn AggFunc, err error) {
-	switch node.Name.Lowered() {
-	case "sum":
-		fn, err = node.newAggFuncSum(from)
-		if err != nil {
-			return
-		}
-		node.fn = fn
-	default:
-		return nil, fmt.Errorf("unrecognized aggregate function: %s", node.Name)
+	fn, err = node.newAggFunc(node.Name.Lowered(), from)
+	if err != nil {
+		return
 	}
+	node.fn = fn
 	return fn, nil
 }
 
@@ -55,72 +50,89 @@ func (node *FuncExpr) Datatype() datatypes.Type {
 	return datatypes.Any
 }
 
-// type AggFuncAvg struct{ Value float32 }
-// type AggFuncBitAnd struct{ Value float32 }
-// type AggFuncBitOr struct{ Value float32 }
-// type AggFuncBitXor struct{ Value float32 }
-// type AggFuncCount struct{ Value float32 }
-// type AggFuncGroupConcat struct{ Value float32 }
-// type AggFuncMax struct{ Value float32 }
-// type AggFuncMin struct{ Value float32 }
-// type AggFuncStd struct{ Value float32 }
-// type AggFuncStddevPop struct{ Value float32 }
-// type AggFuncStddevSamp struct{ Value float32 }
-// type AggFuncStddev struct{ Value float32 }
+type numericAggFunc interface {
+	Eval(val float32)
+	Value() float32
+}
 
-func (node *FuncExpr) newAggFuncSum(from map[string]*StructureData) (AggFunc, error) {
+// type AggFuncBitAnd struct{ Exprs SelecExprs value float32 }
+// type AggFuncBitOr struct{ Exprs SelecExprs value float32 }
+// type AggFuncBitXor struct{ Exprs SelecExprs value float32 }
+// type AggFuncGroupConcat struct{ Exprs SelecExprs value float32 }
+// type AggFuncStd struct{ Exprs SelecExprs value float32 }
+// type AggFuncStddevPop struct{ Exprs SelecExprs value float32 }
+// type AggFuncStddevSamp struct{ Exprs SelecExprs value float32 }
+// type AggFuncStddev struct{ Exprs SelecExprs value float32 }
+// type AggFuncVarPop struct{ Value float32 }
+// type AggFuncVarSamp struct{ Value float32 }
+// type AggFuncVariance struct{ Value float32 }
+
+func (node *FuncExpr) newAggFunc(name string, from map[string]*StructureData) (AggFunc, error) {
 	if !datatypes.EachNumeric(node.Exprs.FieldTypes(from)) {
 		return nil, fmt.Errorf("sum only works with numeric fields")
 	}
 
-	return &AggFuncSum{
-		Exprs: node.Exprs,
-		value: 0,
-	}, nil
+	var fn numericAggFunc
+	switch name {
+	case "sum":
+		fn = &sumFunc{}
+	case "avg":
+		fn = &avgFunc{}
+	case "count":
+		fn = &countFunc{}
+	case "max":
+		fn = &maxFunc{}
+	case "min":
+		fn = &minFunc{}
+	default:
+		return nil, fmt.Errorf("unrecognized aggregate function: %s", node.Name)
+	}
+
+	return &aggFunc{Name: name, Exprs: node.Exprs, fn: fn}, nil
 }
 
-type AggFuncSum struct {
+type aggFunc struct {
+	Name  string
 	Exprs SelectExprs
-	value float32
+	fn    numericAggFunc
 }
 
-func (af *AggFuncSum) Datatype() datatypes.Type {
+func (af *aggFunc) Datatype() datatypes.Type {
 	return datatypes.Float
 }
 
-func (af *AggFuncSum) Eval(row [][]byte) (q.Type, []byte, error) {
+func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
 	fmt.Printf("%#v\n", row)
 	ts, vs, err := af.Exprs.Values(row)
 	if err != nil {
 		return q.Type_NULL_TYPE, nil, err
 	}
 
+	var v float32
 	for i, val := range vs {
 		switch ts[i] {
 		case q.Type_INT64:
-			v, err := readInt(val)
+			value, err := readInt(val)
 			if err != nil {
 				return q.Type_NULL_TYPE, nil, err
 			}
-			fmt.Println("adding int", v)
-			af.value = af.value + float32(v)
+			v = float32(value)
 		case q.Type_FLOAT32:
-			v, err := readFloat32(val)
+			value, err := readFloat32(val)
 			if err != nil {
 				return q.Type_NULL_TYPE, nil, err
 			}
-			fmt.Println("adding float", v)
-			af.value = af.value + v
+			v = value
 		}
+		af.fn.Eval(v)
 	}
-
 	// TODO - possible to debug by printing intermediate
 	// steps here
 	return q.Type_FLOAT32, nil, nil
 }
 
-func (af *AggFuncSum) Value() []byte {
-	return []byte(strconv.FormatFloat(float64(af.value), 'f', -1, 32))
+func (af *aggFunc) Value() []byte {
+	return []byte(strconv.FormatFloat(float64(af.fn.Value()), 'f', -1, 32))
 }
 
 func readInt(data []byte) (int64, error) {
@@ -132,6 +144,41 @@ func readFloat32(data []byte) (float32, error) {
 	return float32(f64), err
 }
 
-// type AggFuncVarPop struct{ Value float32 }
-// type AggFuncVarSamp struct{ Value float32 }
-// type AggFuncVariance struct{ Value float32 }
+type avgFunc struct {
+	count int
+	total float32
+}
+
+func (a *avgFunc) Eval(val float32) {
+	a.count++
+	a.total += val
+}
+func (a avgFunc) Value() float32 { return a.total / float32(a.count) }
+
+type sumFunc struct{ total float32 }
+
+func (a *sumFunc) Eval(val float32) { a.total++ }
+func (a sumFunc) Value() float32    { return a.total }
+
+type countFunc struct{ count int }
+
+func (a *countFunc) Eval(val float32) { a.count++ }
+func (a countFunc) Value() float32    { return float32(a.count) }
+
+type maxFunc struct{ max float32 }
+
+func (a *maxFunc) Eval(val float32) {
+	if val > a.max {
+		a.max = val
+	}
+}
+func (a maxFunc) Value() float32 { return a.max }
+
+type minFunc struct{ min float32 }
+
+func (a *minFunc) Eval(val float32) {
+	if val < a.min {
+		a.min = val
+	}
+}
+func (a minFunc) Value() float32 { return a.min }
