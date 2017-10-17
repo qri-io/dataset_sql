@@ -270,10 +270,12 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	}
 
 	if agg {
-		for _, f := range funcs {
-			fmt.Println(f.Value())
+		row, err := aggFuncResults(funcs, proj)
+		if err != nil {
+			return result, nil, err
 		}
-		// w.WriteRow(row)
+		fmt.Println(row)
+		w.WriteRow(row)
 	}
 
 	if err := w.Close(); err != nil {
@@ -382,6 +384,14 @@ func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]by
 		}
 	}
 	return
+}
+
+func aggFuncResults(funcs []AggFunc, projection []int) (row [][]byte, err error) {
+	row = make([][]byte, len(funcs))
+	for i, fn := range funcs {
+		row[i] = fn.Value()
+	}
+	return row, nil
 }
 
 // TODO - refactor StructureData to take a io.Reader instead of []byte
@@ -531,7 +541,6 @@ func generateResultSchema(stmt *Select, from map[string]*StructureData, result *
 func buildSelectorProjection(sqlNode SQLNode, proj *[]int, from map[string]*StructureData) error {
 	switch node := sqlNode.(type) {
 	case *ColName:
-		fmt.Println(node.Name)
 		idx := 0
 		for _, resourceData := range from {
 			for _, f := range resourceData.Structure.Schema.Fields {

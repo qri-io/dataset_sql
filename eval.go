@@ -239,6 +239,10 @@ func (node *Where) Eval(row [][]byte) (q.Type, []byte, error) {
 	return node.Expr.Eval(row)
 }
 
+func (node *AliasedExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	return node.Expr.Eval(row)
+}
+
 func (nodes SelectExprs) Values(row [][]byte) (types []q.Type, vals [][]byte, err error) {
 	for _, se := range nodes {
 		switch node := se.(type) {

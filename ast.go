@@ -1841,6 +1841,7 @@ func (node *CollateExpr) WalkSubtree(visit Visit) error {
 
 // FuncExpr represents a function call.
 type FuncExpr struct {
+	colIndex  int
 	fn        AggFunc
 	Qualifier TableIdent
 	Name      ColIdent

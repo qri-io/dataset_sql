@@ -12,7 +12,7 @@ import (
 
 type AggFunc interface {
 	Eval(row [][]byte) (q.Type, []byte, error)
-	Value() float32
+	Value() []byte
 }
 
 // AggregateFuncs extracts a slice of any aggregate functions from an AST, while also writing
@@ -119,8 +119,8 @@ func (af *AggFuncSum) Eval(row [][]byte) (q.Type, []byte, error) {
 	return q.Type_FLOAT32, nil, nil
 }
 
-func (af *AggFuncSum) Value() float32 {
-	return af.value
+func (af *AggFuncSum) Value() []byte {
+	return []byte(strconv.FormatFloat(float64(af.value), 'f', -1, 32))
 }
 
 func readInt(data []byte) (int64, error) {
