@@ -117,7 +117,7 @@ func (node *SQLVal) Eval(row [][]byte) (q.Type, []byte, error) {
 	case IntVal:
 		t = q.Type_INT64
 	case FloatVal:
-		t = q.Type_FLOAT64
+		t = q.Type_FLOAT32
 	case HexNum:
 		t = q.Type_BINARY
 	case HexVal:
@@ -142,29 +142,6 @@ func (node BoolVal) Eval(row [][]byte) (q.Type, []byte, error) {
 
 // Eval evaluates the node against a row of data
 func (node *ColName) Eval(row [][]byte) (q.Type, []byte, error) {
-	// switch node.Field.Type {
-	// case datatypes.Any:
-	//  return row[node.RowIndex], nil
-	// case datatypes.String:
-	//  return row[node.RowIndex], nil
-	// case datatypes.Float:
-	//  return row[node.RowIndex], nil
-	// case datatypes.Integer:
-	//  return row[node.RowIndex], nil
-	// case datatypes.Date:
-	//  return row[node.RowIndex], nil
-	// case datatypes.Boolean:
-	//  val, err := datatypes.ParseBoolean(row[node.RowIndex])
-
-	//  return BoolVal(val), err
-	// case datatypes.Object:
-	//  // TODO
-	//  return NewStrVal(row[node.RowIndex]), nil
-	// case datatypes.Array:
-	//  // TODO
-	//  return NewStrVal(row[node.RowIndex]), nil
-	// }
-	// return nil, fmt.Errorf("couldn't find a column named '%s'", node.Name)
 	return q.Type_NULL_TYPE, row[node.RowIndex], nil
 }
 
@@ -204,7 +181,7 @@ func (node *CollateExpr) Eval(row [][]byte) (q.Type, []byte, error) {
 
 // TODO - finish
 func (node *FuncExpr) Eval(row [][]byte) (q.Type, []byte, error) {
-	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval FuncExpr")
+	return node.fn.Eval(row)
 }
 
 // TODO - finish
@@ -244,4 +221,45 @@ func (node *Where) Eval(row [][]byte) (q.Type, []byte, error) {
 		return QueryBoolType, trueB, nil
 	}
 	return node.Expr.Eval(row)
+}
+
+func (nodes SelectExprs) Values(row [][]byte) (types []q.Type, vals [][]byte, err error) {
+	for _, se := range nodes {
+		switch node := se.(type) {
+		case *StarExpr:
+			ts, vs, e := node.Values(row)
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, ts...)
+			vals = append(vals, vs...)
+		case *AliasedExpr:
+			t, v, e := node.Expr.Eval(row)
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, t)
+			vals = append(vals, v)
+		case Nextval:
+			t, v, e := node.Value(row)
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, t)
+			vals = append(vals, v)
+		}
+	}
+	return
+}
+
+func (node *StarExpr) Values(row [][]byte) ([]q.Type, [][]byte, error) {
+	return []q.Type{q.Type_NULL_TYPE}, nil, NotYetImplemented("star expession values")
+}
+
+func (node *Nextval) Value(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
 }

@@ -747,7 +747,6 @@ func (node SelectExprs) WalkSubtree(visit Visit) error {
 // SelectExpr represents a SELECT expression.
 type SelectExpr interface {
 	iSelectExpr()
-	// Map(col int, src, dst *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error)
 	SQLNode
 }
 
@@ -758,19 +757,6 @@ func (Nextval) iSelectExpr()      {}
 // StarExpr defines a '*' or 'table.*' expression.
 type StarExpr struct {
 	TableName TableName
-}
-
-func (node *StarExpr) Map(col int, src, dst *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error) {
-	// if node.TableName != nil {
-	// Todo - Table names should be scoped
-	// d.DatasetForAddress()
-	// } else {
-	for i, srcCol := range srcRow {
-		dstRow[col+i] = srcCol
-	}
-	// }
-
-	return len(srcRow), nil
 }
 
 // Format formats the node.
@@ -798,21 +784,6 @@ type AliasedExpr struct {
 	As   ColIdent
 }
 
-func (node *AliasedExpr) Map(col int, src *dataset.Structure, srcRow, dstRow [][]byte) (int, error) {
-	_, val, err := node.Expr.Eval(srcRow)
-	if err != nil {
-		return 0, err
-	}
-	dstRow[col] = val
-	return 1, nil
-
-	// if val, ok := expr.(*SQLVal); ok {
-	// 	dstRow[col] = val.Bytes()
-	// 	return 1, nil
-	// }
-	// return 0, fmt.Errorf("invalid selector for column: %d", col)
-}
-
 // Field returns a name & datatype for the select expr
 func (node *AliasedExpr) ResultName() (name string) {
 	if node.As.String() != "" {
@@ -825,48 +796,6 @@ func (node *AliasedExpr) ResultName() (name string) {
 	}
 
 	return
-}
-
-// FieldType returns a string representation of the type of field
-// where datatype is one of: "", "string", "integer", "float", "boolean", "date"
-// TODO - this may need rethinking.
-func (node *AliasedExpr) FieldType(from map[string]*StructureData) datatypes.Type {
-	switch n := node.Expr.(type) {
-	case *ColName:
-		colName := node.Expr.(*ColName)
-		for _, resourceData := range from {
-			for _, f := range resourceData.Structure.Schema.Fields {
-				// fmt.Println(name.Name.String(), f.Name)
-				if colName.Name.String() == f.Name {
-					return f.Type
-				}
-			}
-		}
-		return datatypes.Unknown
-	// case BoolExpr:
-	// 	return datatypes.Boolean
-	case *NullVal:
-		return datatypes.Any
-	case *SQLVal:
-		switch n.Type {
-		case StrVal:
-			return datatypes.String
-		case FloatVal:
-			return datatypes.Float
-		case IntVal:
-			return datatypes.Integer
-		case HexNum:
-			// TODO - this is wrong
-			return datatypes.String
-		case HexVal:
-			return datatypes.String
-		case ValArg:
-			// TODO - this is probably wrong
-			return datatypes.Any
-		}
-	}
-
-	return datatypes.Unknown
 }
 
 // Format formats the node.
@@ -892,11 +821,6 @@ func (node *AliasedExpr) WalkSubtree(visit Visit) error {
 // Nextval defines the NEXT VALUE expression.
 type Nextval struct {
 	Expr Expr
-}
-
-// TODO - ?
-func (node Nextval) Map(col int, srcDataset, dstDataset *dataset.Structure, srcRow, dstRow [][]byte) (colsWritten int, err error) {
-	return
 }
 
 // Format formats the node.
@@ -1917,6 +1841,7 @@ func (node *CollateExpr) WalkSubtree(visit Visit) error {
 
 // FuncExpr represents a function call.
 type FuncExpr struct {
+	fn        AggFunc
 	Qualifier TableIdent
 	Name      ColIdent
 	Distinct  bool

@@ -174,6 +174,13 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return result, nil, err
 	}
 
+	funcs, err := AggregateFuncs(stmt.SelectExprs, from)
+	if err != nil {
+		return result, nil, err
+	}
+
+	agg := len(funcs) > 0
+
 	w := writers.NewWriter(ds.Structure)
 
 	limit, offset, err := stmt.Limit.Counts()
@@ -245,7 +252,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 			}
 		}
 
-		w.WriteRow(row)
+		if !agg {
+			w.WriteRow(row)
+		}
+
 		added++
 
 		// we can advance the leftmost row if we make it here and there's a filtering clause.
@@ -258,6 +268,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		// 	}
 		// }
 	}
+
+	// if agg {
+	// 	w.WriteRow(row)
+	// }
 
 	if err := w.Close(); err != nil {
 		return result, nil, err
@@ -309,36 +323,37 @@ func (node *OtherAdmin) exec(store cafs.Filestore, ds *dataset.Dataset, remap ma
 
 // populateColNames adds type information to ColName nodes in the ast
 func populateColNames(stmt *Select, from map[string]*StructureData) error {
-	return stmt.Where.WalkSubtree(func(node SQLNode) (bool, error) {
-		if colName, ok := node.(*ColName); ok && node != nil {
-			if colName.Qualifier.String() != "" {
+	return stmt.Where.WalkSubtree(func(sqlNode SQLNode) (bool, error) {
+		switch node := sqlNode.(type) {
+		case *ColName:
+			if node.Qualifier.String() != "" {
 				idx := 0
 				for tableName, resourceData := range from {
-					if colName.Qualifier.String() == tableName {
+					if node.Qualifier.String() == tableName {
 						for i, f := range resourceData.Structure.Schema.Fields {
-							if colName.Name.String() == f.Name {
-								colName.Field = f
-								colName.RowIndex = idx + i
+							if node.Name.String() == f.Name {
+								node.Field = f
+								node.RowIndex = idx + i
 								return true, nil
 							}
 						}
 					}
 					idx += len(resourceData.Structure.Schema.Fields)
 				}
-				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", colName.Name.String(), colName.Qualifier.TableName())
+				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", node.Name.String(), node.Qualifier.TableName())
 			} else {
 				idx := 0
 				for _, resourceData := range from {
 					for i, f := range resourceData.Structure.Schema.Fields {
-						if colName.Name.String() == f.Name {
-							colName.Field = f
-							colName.RowIndex = idx + i
+						if node.Name.String() == f.Name {
+							node.Field = f
+							node.RowIndex = idx + i
 							return true, nil
 						}
 					}
 					idx += len(resourceData.Structure.Schema.Fields)
 				}
-				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", colName.Name.String())
+				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", node.Name.String())
 			}
 		}
 
@@ -351,14 +366,13 @@ func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]by
 	row = make([][]byte, len(projection))
 	for i, j := range projection {
 		if j == -1 {
-			if axp, ok := stmt[i].(*AliasedExpr); ok {
-				_, val, e := axp.Expr.Eval(row)
+			switch node := stmt[i].(type) {
+			case *AliasedExpr:
+				_, val, e := node.Expr.Eval(row)
 				if e != nil {
 					return row, e
 				}
 				row[i] = val
-			} else {
-				return row, fmt.Errorf("select expression %d is invalid", i+1)
 			}
 		} else {
 			row[i] = source[j]
