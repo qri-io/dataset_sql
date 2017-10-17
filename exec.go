@@ -269,9 +269,12 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		// }
 	}
 
-	// if agg {
-	// 	w.WriteRow(row)
-	// }
+	if agg {
+		for _, f := range funcs {
+			fmt.Println(f.Value())
+		}
+		// w.WriteRow(row)
+	}
 
 	if err := w.Close(); err != nil {
 		return result, nil, err
@@ -323,7 +326,7 @@ func (node *OtherAdmin) exec(store cafs.Filestore, ds *dataset.Dataset, remap ma
 
 // populateColNames adds type information to ColName nodes in the ast
 func populateColNames(stmt *Select, from map[string]*StructureData) error {
-	return stmt.Where.WalkSubtree(func(sqlNode SQLNode) (bool, error) {
+	return stmt.WalkSubtree(func(sqlNode SQLNode) (bool, error) {
 		switch node := sqlNode.(type) {
 		case *ColName:
 			if node.Qualifier.String() != "" {
@@ -524,28 +527,79 @@ func generateResultSchema(stmt *Select, from map[string]*StructureData, result *
 	}
 }
 
+// TODO - put this in a better place
+func buildSelectorProjection(sqlNode SQLNode, proj *[]int, from map[string]*StructureData) error {
+	switch node := sqlNode.(type) {
+	case *ColName:
+		fmt.Println(node.Name)
+		idx := 0
+		for _, resourceData := range from {
+			for _, f := range resourceData.Structure.Schema.Fields {
+				if f.Name == node.Name.String() {
+					*proj = append(*proj, idx)
+					return nil
+				}
+				idx++
+			}
+		}
+	case *StarExpr:
+		*proj = append(*proj, intSeries(0, fromFieldCount(from))...)
+	case *AliasedExpr:
+		if err := buildSelectorProjection(node.Expr, proj, from); err != nil {
+			return err
+		}
+	case Nextval:
+		return NotYetImplemented("building projections from nextVal")
+	case SelectExprs:
+		return node.buildSelectorProjection(proj, from)
+	case *FuncExpr:
+		return node.Exprs.buildSelectorProjection(proj, from)
+	case *GroupConcatExpr:
+		// TODO - wtf is a group concat expr?
+		return node.Exprs.buildSelectorProjection(proj, from)
+	case *MatchExpr:
+		// TODO - wtf is a match expr?
+		return node.Columns.buildSelectorProjection(proj, from)
+	case *Select:
+		return node.SelectExprs.buildSelectorProjection(proj, from)
+	}
+	return nil
+}
+
+func (selexprs SelectExprs) buildSelectorProjection(proj *[]int, from map[string]*StructureData) error {
+	for _, se := range selexprs {
+		if err := buildSelectorProjection(se, proj, from); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // buildProjection constructs the intermediate "projection" table that the sql query must
 // generate in order to select form
 func buildProjection(selectors SelectExprs, from map[string]*StructureData) (proj []int, err error) {
-	for _, node := range selectors {
-		if isUnqualifiedStarExpr(node) {
-			return intSeries(0, fromFieldCount(from)), nil
-		} else if isQualifiedStarExpr(node) {
-			r, e := findStarExprStructure(node, from)
-			if e != nil {
-				return proj, e
-			}
-			proj = append(proj, intSeries(len(proj), len(r.Schema.Fields))...)
-		} else {
-			i, e := nodeColIndex(node, from)
-			if e != nil {
-				return proj, e
-			}
-			proj = append(proj, i)
-		}
-
-	}
+	proj = []int{}
+	err = buildSelectorProjection(selectors, &proj, from)
 	return
+	// for _, node := range selectors {
+	// 	if isUnqualifiedStarExpr(node) {
+	// 		return intSeries(0, fromFieldCount(from)), nil
+	// 	} else if isQualifiedStarExpr(node) {
+	// 		r, e := findStarExprStructure(node, from)
+	// 		if e != nil {
+	// 			return proj, e
+	// 		}
+	// 		proj = append(proj, intSeries(len(proj), len(r.Schema.Fields))...)
+	// 	} else {
+	// 		i, e := nodeColIndex(node, from)
+	// 		if e != nil {
+	// 			return proj, e
+	// 		}
+	// 		proj = append(proj, i)
+	// 	}
+
+	// }
+	// return
 }
 
 func buildDatabase(from map[string]*StructureData, ds *dataset.Structure) (data [][][][]byte, lengths []int, err error) {

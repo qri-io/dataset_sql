@@ -160,6 +160,12 @@ EXPRESSIONS:
 						}
 					}
 				}
+			case *FuncExpr:
+				st.Schema.Fields = append(st.Schema.Fields, &dataset.Field{
+					Name: exp.Name.String(),
+					Type: exp.Datatype(),
+				})
+
 			case *Subquery:
 				return nil, NotYetImplemented("Subquerying")
 			}

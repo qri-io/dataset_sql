@@ -3,6 +3,7 @@ package dataset_sql
 import (
 	"bytes"
 	"fmt"
+	"github.com/qri-io/dataset/datatypes"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
@@ -142,7 +143,22 @@ func (node BoolVal) Eval(row [][]byte) (q.Type, []byte, error) {
 
 // Eval evaluates the node against a row of data
 func (node *ColName) Eval(row [][]byte) (q.Type, []byte, error) {
-	return q.Type_NULL_TYPE, row[node.RowIndex], nil
+	// TODO - this is a pretty decent indicator that we should switch
+	// return types to our type system
+	var t q.Type
+	switch node.Field.Type {
+	case datatypes.Integer:
+		t = q.Type_INT64
+	case datatypes.Float:
+		t = q.Type_FLOAT32
+	case datatypes.String:
+		t = q.Type_TEXT
+	case datatypes.Boolean:
+		t = QueryBoolType
+	default:
+		return q.Type_NULL_TYPE, nil, fmt.Errorf("unsupported datatype for colname evaluation: %s", node.Field.Type.String())
+	}
+	return t, row[node.RowIndex], nil
 }
 
 func (node ValTuple) Eval(row [][]byte) (q.Type, []byte, error) {
@@ -235,6 +251,7 @@ func (nodes SelectExprs) Values(row [][]byte) (types []q.Type, vals [][]byte, er
 			types = append(types, ts...)
 			vals = append(vals, vs...)
 		case *AliasedExpr:
+			fmt.Printf("%#v\n", node.Expr)
 			t, v, e := node.Expr.Eval(row)
 			if e != nil {
 				err = e

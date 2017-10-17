@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
+	"strconv"
 
 	"github.com/qri-io/dataset/datatypes"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
@@ -47,6 +47,14 @@ func (node *FuncExpr) Function(from map[string]*StructureData) (fn AggFunc, err 
 	return fn, nil
 }
 
+func (node *FuncExpr) Datatype() datatypes.Type {
+	switch node.Name.Lowered() {
+	case "sum":
+		return datatypes.Float
+	}
+	return datatypes.Any
+}
+
 // type AggFuncAvg struct{ Value float32 }
 // type AggFuncBitAnd struct{ Value float32 }
 // type AggFuncBitOr struct{ Value float32 }
@@ -76,7 +84,12 @@ type AggFuncSum struct {
 	value float32
 }
 
+func (af *AggFuncSum) Datatype() datatypes.Type {
+	return datatypes.Float
+}
+
 func (af *AggFuncSum) Eval(row [][]byte) (q.Type, []byte, error) {
+	fmt.Printf("%#v\n", row)
 	ts, vs, err := af.Exprs.Values(row)
 	if err != nil {
 		return q.Type_NULL_TYPE, nil, err
@@ -89,9 +102,15 @@ func (af *AggFuncSum) Eval(row [][]byte) (q.Type, []byte, error) {
 			if err != nil {
 				return q.Type_NULL_TYPE, nil, err
 			}
-			af.value += float32(v)
+			fmt.Println("adding int", v)
+			af.value = af.value + float32(v)
 		case q.Type_FLOAT32:
-			af.value += readFloat32(val)
+			v, err := readFloat32(val)
+			if err != nil {
+				return q.Type_NULL_TYPE, nil, err
+			}
+			fmt.Println("adding float", v)
+			af.value = af.value + v
 		}
 	}
 
@@ -108,8 +127,9 @@ func readInt(data []byte) (int64, error) {
 	return binary.ReadVarint(bytes.NewBuffer(data))
 }
 
-func readFloat32(data []byte) float32 {
-	return math.Float32frombits(binary.LittleEndian.Uint32(data))
+func readFloat32(data []byte) (float32, error) {
+	f64, err := strconv.ParseFloat(string(data), 32)
+	return float32(f64), err
 }
 
 // type AggFuncVarPop struct{ Value float32 }
