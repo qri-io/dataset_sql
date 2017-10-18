@@ -143,24 +143,27 @@ func (node BoolVal) Eval(row [][]byte) (q.Type, []byte, error) {
 
 // Eval evaluates the node against a row of data
 func (node *ColName) Eval(row [][]byte) (q.Type, []byte, error) {
-	// TODO - this is a pretty decent indicator that we should switch
-	// return types to our type system
-	var t q.Type
-	switch node.Field.Type {
-	case datatypes.Integer:
-		t = q.Type_INT64
-	case datatypes.Float:
-		t = q.Type_FLOAT32
-	case datatypes.String:
-		t = q.Type_TEXT
-	case datatypes.Boolean:
-		t = QueryBoolType
-	case datatypes.Date:
-		t = q.Type_DATE
-	default:
-		return q.Type_NULL_TYPE, nil, fmt.Errorf("unsupported datatype for colname evaluation: %s", node.Field.Type.String())
+	if sr, ok := node.Metadata.(StructureRef); ok {
+		// TODO - this is a pretty decent indicator that we should switch
+		// return types to our type system
+		var t q.Type
+		switch sr.Field.Type {
+		case datatypes.Integer:
+			t = q.Type_INT64
+		case datatypes.Float:
+			t = q.Type_FLOAT32
+		case datatypes.String:
+			t = q.Type_TEXT
+		case datatypes.Boolean:
+			t = QueryBoolType
+		case datatypes.Date:
+			t = q.Type_DATE
+		default:
+			return q.Type_NULL_TYPE, nil, fmt.Errorf("unsupported datatype for colname evaluation: %s", sr.Field.Type.String())
+		}
+		return t, row[sr.ColIndex], nil
 	}
-	return t, row[node.RowIndex], nil
+	return q.Type_NULL_TYPE, nil, fmt.Errorf("col ref %s hasn't been populated with structural information", node.Name.String())
 }
 
 func (node ValTuple) Eval(row [][]byte) (q.Type, []byte, error) {

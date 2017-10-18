@@ -37,8 +37,7 @@ type SourceRowGenerator struct {
 }
 
 func (srg *SourceRowGenerator) Next() SourceRow {
-	sr := SourceRow{}
-	if srg.readers[0].i == srg.readers[0].length-1 {
+	if srg.readers[0].done {
 		return nil
 	}
 	srg.incrRow()
@@ -48,10 +47,10 @@ func (srg *SourceRowGenerator) Next() SourceRow {
 func (srg *SourceRowGenerator) incrRow() error {
 	for i := len(srg.readers) - 1; i >= 0; i-- {
 		rdr := srg.readers[i]
-		if rdr.i < rdr.length-1 {
-			return rdr.Next()
-		} else if rdr.i == rdr.length-1 && i > 0 {
+		if rdr.done {
 			return rdr.Reset(srg.store)
+		} else {
+			return rdr.Next()
 		}
 	}
 	return nil
@@ -60,7 +59,7 @@ func (srg *SourceRowGenerator) incrRow() error {
 func (srg *SourceRowGenerator) row() SourceRow {
 	sr := SourceRow{}
 	for _, rdr := range srg.readers {
-		SourceRow[rdr.name] == rdr.row
+		sr[rdr.name] = rdr.row
 	}
 	return sr
 }
@@ -113,5 +112,5 @@ type SourceRowFilter struct {
 // Filter returns weather the row should be allowed to pass through
 // to the table
 func (srf *SourceRowFilter) Filter() bool {
-	return true, false
+	return true
 }

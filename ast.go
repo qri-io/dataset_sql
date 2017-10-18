@@ -1211,7 +1211,6 @@ func (node *Where) WalkSubtree(visit Visit) error {
 // Expr represents an expression.
 type Expr interface {
 	iExpr()
-	// Eval(row [][]byte) (pbquery.Type, []byte, error)
 	SQLNode
 }
 
@@ -1616,11 +1615,7 @@ type ColName struct {
 	// It's a placeholder for analyzers to store
 	// additional data, typically info about which
 	// table or column this node references.
-	Metadata interface{}
-	// field info
-	Field *dataset.Field
-	// RowIndex is the... column index?
-	RowIndex  int
+	Metadata  interface{}
 	Name      ColIdent
 	Qualifier TableName
 }

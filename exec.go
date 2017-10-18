@@ -169,9 +169,9 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	}
 
 	// Populate any ColName nodes with their type information
-	if err := populateColNames(stmt, from); err != nil {
-		return result, nil, err
-	}
+	// if err := populateColNames(stmt, from); err != nil {
+	// 	return result, nil, err
+	// }
 
 	funcs, err := AggregateFuncs(stmt.SelectExprs, from)
 	if err != nil {
@@ -330,44 +330,44 @@ func (node *OtherAdmin) exec(store cafs.Filestore, ds *dataset.Dataset, remap ma
 }
 
 // populateColNames adds type information to ColName nodes in the ast
-func populateColNames(stmt *Select, from map[string]*StructureData) error {
-	return stmt.WalkSubtree(func(sqlNode SQLNode) (bool, error) {
-		switch node := sqlNode.(type) {
-		case *ColName:
-			if node.Qualifier.String() != "" {
-				idx := 0
-				for tableName, resourceData := range from {
-					if node.Qualifier.String() == tableName {
-						for i, f := range resourceData.Structure.Schema.Fields {
-							if node.Name.String() == f.Name {
-								node.Field = f
-								node.RowIndex = idx + i
-								return true, nil
-							}
-						}
-					}
-					idx += len(resourceData.Structure.Schema.Fields)
-				}
-				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", node.Name.String(), node.Qualifier.TableName())
-			} else {
-				idx := 0
-				for _, resourceData := range from {
-					for i, f := range resourceData.Structure.Schema.Fields {
-						if node.Name.String() == f.Name {
-							node.Field = f
-							node.RowIndex = idx + i
-							return true, nil
-						}
-					}
-					idx += len(resourceData.Structure.Schema.Fields)
-				}
-				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", node.Name.String())
-			}
-		}
+// func populateColNames(stmt *Select, from map[string]*StructureData) error {
+// 	return stmt.WalkSubtree(func(sqlNode SQLNode) (bool, error) {
+// 		switch node := sqlNode.(type) {
+// 		case *ColName:
+// 			if node.Qualifier.String() != "" {
+// 				idx := 0
+// 				for tableName, resourceData := range from {
+// 					if node.Qualifier.String() == tableName {
+// 						for i, f := range resourceData.Structure.Schema.Fields {
+// 							if node.Name.String() == f.Name {
+// 								node.Field = f
+// 								node.RowIndex = idx + i
+// 								return true, nil
+// 							}
+// 						}
+// 					}
+// 					idx += len(resourceData.Structure.Schema.Fields)
+// 				}
+// 				return false, fmt.Errorf("couldn't find field named '%s' in dataset '%s'", node.Name.String(), node.Qualifier.TableName())
+// 			} else {
+// 				idx := 0
+// 				for _, resourceData := range from {
+// 					for i, f := range resourceData.Structure.Schema.Fields {
+// 						if node.Name.String() == f.Name {
+// 							node.Field = f
+// 							node.RowIndex = idx + i
+// 							return true, nil
+// 						}
+// 					}
+// 					idx += len(resourceData.Structure.Schema.Fields)
+// 				}
+// 				return false, fmt.Errorf("couldn't find field named '%s' in any of the specified datasets", node.Name.String())
+// 			}
+// 		}
 
-		return true, nil
-	})
-}
+// 		return true, nil
+// 	})
+// }
 
 func aggFuncResults(funcs []AggFunc, projection []int) (row [][]byte, err error) {
 	row = make([][]byte, len(funcs))
