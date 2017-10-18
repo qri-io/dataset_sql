@@ -11,6 +11,7 @@ func TestPrintAst(t *testing.T) {
 		filename, stmt string
 		err            error
 	}{
+		{"simple_agg", "select sum(5) from t1", nil},
 		{"one", "select sum(col_one) from table_2 where col_one > 2000", nil},
 	}
 
@@ -21,13 +22,15 @@ func TestPrintAst(t *testing.T) {
 			continue
 		}
 
-		err = ioutil.WriteFile(fmt.Sprintf("testdata/%s.json", c.filename), jsondata, 0777)
-		if err != nil {
-			t.Errorf("case %d error writing results json file: %s", i, err.Error())
-		}
-		err = ioutil.WriteFile(fmt.Sprintf("testdata/%s.txt", c.filename), textbytes, 0777)
-		if err != nil {
-			t.Errorf("case %d error writing results text file: %s", i, err.Error())
+		if c.err == nil {
+			err = ioutil.WriteFile(fmt.Sprintf("testdata/%s.json", c.filename), jsondata, 0777)
+			if err != nil {
+				t.Errorf("case %d error writing results json file: %s", i, err.Error())
+			}
+			err = ioutil.WriteFile(fmt.Sprintf("testdata/%s.txt", c.filename), textbytes, 0777)
+			if err != nil {
+				t.Errorf("case %d error writing results text file: %s", i, err.Error())
+			}
 		}
 	}
 }

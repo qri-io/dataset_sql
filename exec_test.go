@@ -85,8 +85,8 @@ func TestSelectFields(t *testing.T) {
 
 	cases := []execTestCase{
 		// {"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		// {"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
-		// {"select created from t1 limit 5", nil, []*dataset.Field{created}, 5},
+		{"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select created from t1 limit 5", nil, []*dataset.Field{created}, 5},
 		// {"select t1.created from t1 limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		// {"select * from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		// {"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
@@ -103,7 +103,6 @@ func TestSelectFields(t *testing.T) {
 		// 	&dataset.Field{Name: "max", Type: datatypes.Float},
 		// 	&dataset.Field{Name: "min", Type: datatypes.Float},
 		// }, 1},
-
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2},
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},

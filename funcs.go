@@ -72,6 +72,10 @@ func (node *FuncExpr) newAggFunc(name string, from map[string]*StructureData) (A
 		return nil, fmt.Errorf("sum only works with numeric fields")
 	}
 
+	if len(node.Exprs) != 1 {
+		return nil, fmt.Errorf("too many arguments for aggregate function: %s", name)
+	}
+
 	var fn numericAggFunc
 	switch name {
 	case "sum":
@@ -103,6 +107,7 @@ func (af *aggFunc) Datatype() datatypes.Type {
 
 func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
 	fmt.Printf("EVAL: %#v\n", row)
+
 	ts, vs, err := af.Exprs.Values(row)
 	if err != nil {
 		return q.Type_NULL_TYPE, nil, err
@@ -114,20 +119,19 @@ func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
 		case q.Type_INT64:
 			value, err := datatypes.ParseInteger(val)
 			if err != nil {
-				return q.Type_NULL_TYPE, nil, err
+				return q.Type_NULL_TYPE, nil, fmt.Errorf("invalid integer: '%s'", string(val))
 			}
 			v = float32(value)
 		case q.Type_FLOAT32:
 			value, err := datatypes.ParseFloat(val)
 			if err != nil {
-				return q.Type_NULL_TYPE, nil, err
+				return q.Type_NULL_TYPE, nil, fmt.Errorf("invalid float: '%s'", string(val))
 			}
 			v = float32(value)
 		}
 		af.fn.Eval(v)
 	}
-	// TODO - possible to debug by printing intermediate
-	// steps here
+
 	return q.Type_FLOAT32, nil, nil
 }
 
