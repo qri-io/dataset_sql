@@ -1,12 +1,10 @@
 package dataset_sql
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/dsio"
-	"io/ioutil"
 )
 
 type ExecOpt struct {
@@ -127,158 +125,63 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return nil, nil, NotYetImplemented("ORDER BY statements")
 	}
 
-	// TODO - This is a total hack to support DISTINCT statements for now
-	// in the future this needs to be rolled in as a "hasRow" method
-	// on the resultWriter interface
-	// left like this it'll chew up memory
-	var writtenRows [][][]byte
-
-	// from, result, err := buildResultStructure(stmt, store, ds.Resources, opts)
-	// if err != nil {
-	// 	return
-	// }
-
 	result = ds.Query.Structure
-	from := map[string]*StructureData{}
-	for abst, con := range remap {
-		file, e := store.Get(ds.Resources[con].Data)
-		if e != nil {
-			err = fmt.Errorf("error getting dataset file: %s: %s", ds.Data, e.Error())
-			return
-		}
-
-		// TODO - this is a shim for now and should be removed asap
-		data, e := ioutil.ReadAll(file)
-		if e != nil {
-			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
-			return
-		}
-
-		from[abst] = &StructureData{
-			Structure: ds.Query.Structures[abst],
-			Data:      data,
-		}
+	resources := map[string]*dataset.Structure{}
+	for abst, _ := range remap {
+		resources[abst] = ds.Query.Structures[abst]
 	}
 
-	// TODO... Sort each table by select sort criteria here?
-	// TODO - column ambiguity check
+	if err := PopulateTableInfo(stmt, resources); err != nil {
+		return result, nil, err
+	}
 
-	proj, err := buildProjection(stmt.SelectExprs, from)
+	srg, err := NewSourceRowGenerator(store, ds.Resources)
 	if err != nil {
 		return result, nil, err
 	}
 
-	// Populate any ColName nodes with their type information
-	// if err := populateColNames(stmt, from); err != nil {
-	// 	return result, nil, err
+	srf, err := NewSourceRowFilter(stmt)
+	if err != nil {
+		return result, nil, err
+	}
+
+	cols := CollectColNames(stmt)
+	rg := NewRowGenerator(stmt, result)
+	buf := dsio.NewBuffer(result)
+
+	for srg.Next() && !srf.Done() {
+		sr := srg.Row()
+
+		if err := SetSourceRow(cols, sr); err != nil {
+			return result, nil, err
+		}
+
+		if srf.Filter(sr) {
+
+			row, err := rg.GenerateRow(sr)
+			if err != nil {
+				return result, nil, err
+			}
+
+			if err := buf.WriteRow(row); err != nil {
+				return result, nil, err
+			}
+
+		}
+	}
+
+	// TODO - restore aggregate function writing
+	// if agg {
+	// 	row, err := aggFuncResults(funcs)
+	// 	if err != nil {
+	// 		return result, nil, err
+	// 	}
+	// 	// fmt.Println(row)
+	// 	for _, r := range row {
+	// 		fmt.Printf(string(r))
+	// 	}
+	// 	buf.WriteRow(row)
 	// }
-
-	funcs, err := AggregateFuncs(stmt.SelectExprs, from)
-	if err != nil {
-		return result, nil, err
-	}
-
-	agg := len(funcs) > 0
-
-	buf := dsio.NewBuffer(ds.Structure)
-
-	limit, offset, err := stmt.Limit.Counts()
-	if err != nil {
-		return result, nil, err
-	}
-
-	added := int64(0)
-	skipped := int64(0)
-
-	data, lengths, err := buildDatabase(from, result)
-	if err != nil {
-		return result, nil, err
-	}
-
-	indicies := make([]int, len(from))
-	if len(indicies) > 0 {
-		indicies[len(indicies)-1] = -1
-	}
-	rowLen := masterRowLength(from)
-
-	for {
-		if limit > 0 && added == limit && stmt.OrderBy == nil {
-			break
-		}
-
-		// generate the next master row from source datasests, bailing if we have nothing left to examine
-		// statements that don't reference any datasets need a chance to return their results
-		// so we bail if added is above zero and the slice is empty
-		row := nextRow(len(from), indicies, lengths, rowLen, data)
-		if row == nil || (len(row) == 0 && added > 0) {
-			break
-		}
-
-		// check dst against criteria, only continue if it passes
-		// TODO - confirm that the result dataset is the proper one to be passing in here?
-		// see if we can't remove dataset altogether by embedding all info in the ast?
-		if _, pass, err := stmt.Where.Eval(row); err != nil {
-			return result, nil, err
-		} else if bytes.Equal(pass, falseB) {
-			continue
-		}
-
-		// check offset
-		if offset > 0 && skipped < offset {
-			skipped++
-			continue
-		}
-
-		// project result row
-		row, err = projectRow(stmt.SelectExprs, proj, row)
-		if err != nil {
-			return
-		}
-
-		// check distinct
-		if stmt.Distinct != "" {
-			unique := true
-			for _, r := range writtenRows {
-				if rowsEqual(row, r) {
-					unique = false
-					break
-				}
-			}
-			if unique {
-				writtenRows = append(writtenRows, row)
-			} else {
-				continue
-			}
-		}
-
-		if !agg {
-			buf.WriteRow(row)
-		}
-
-		added++
-
-		// we can advance the leftmost row if we make it here and there's a filtering clause.
-		// b/c at this point we have a match for the leftmost combination.
-		// TODO - I'm nervous of this because I haven't thought through multiple matches.
-		// 				so for the moment we're skipping it.
-		// if stmt.Where != nil {
-		// 	if done := jumpRow(indicies, lengths); done {
-		// 		break
-		// 	}
-		// }
-	}
-
-	if agg {
-		row, err := aggFuncResults(funcs, proj)
-		if err != nil {
-			return result, nil, err
-		}
-		// fmt.Println(row)
-		for _, r := range row {
-			fmt.Printf(string(r))
-		}
-		buf.WriteRow(row)
-	}
 
 	if err := buf.Close(); err != nil {
 		return result, nil, err
@@ -369,7 +272,7 @@ func (node *OtherAdmin) exec(store cafs.Filestore, ds *dataset.Dataset, remap ma
 // 	})
 // }
 
-func aggFuncResults(funcs []AggFunc, projection []int) (row [][]byte, err error) {
+func aggFuncResults(funcs []AggFunc) (row [][]byte, err error) {
 	row = make([][]byte, len(funcs))
 	for i, fn := range funcs {
 		row[i] = fn.Value()
@@ -378,156 +281,106 @@ func aggFuncResults(funcs []AggFunc, projection []int) (row [][]byte, err error)
 }
 
 // TODO - refactor StructureData to take a io.Reader instead of []byte
-type StructureData struct {
-	Structure *dataset.Structure
-	Data      []byte
-}
-
-// Gather all mentioned tables, attaching them to a *dataset.Structure
-// TODO - refactor this out
-func buildResultStructure(stmt *Select, store cafs.Filestore, resources map[string]*dataset.Dataset, opts *ExecOpt) (from map[string]*StructureData, result *dataset.Structure, err error) {
-	from = map[string]*StructureData{}
-	structures := map[string]*dataset.Structure{}
-	for name, ds := range resources {
-		st := ds.Structure
-
-		file, e := store.Get(ds.Data)
-		if e != nil {
-			err = fmt.Errorf("error getting dataset file: %s: %s", ds.Data, e.Error())
-			return
-		}
-
-		// TODO - shim until structured data refactor
-		data, e := ioutil.ReadAll(file)
-		if e != nil {
-			err = fmt.Errorf("error loading dataset data: %s: %s", ds.Data, e.Error())
-			return
-		}
-
-		from[name] = &StructureData{
-			Structure: st,
-			Data:      data,
-		}
-
-		structures[name] = st
-	}
-
-	result, err = ResultStructure(stmt, structures, opts)
-	if err != nil {
-		return
-	}
-
-	return
-}
+// type StructureData struct {
+// 	Structure *dataset.Structure
+// 	Data      []byte
+// }
 
 // fromFieldCount totals all fields in
-func fromFieldCount(from map[string]*StructureData) (count int) {
-	for _, resourceData := range from {
-		count += len(resourceData.Structure.Schema.Fields)
-	}
-	return
-}
+// func fromFieldCount(from map[string]*StructureData) (count int) {
+// 	for _, resourceData := range from {
+// 		count += len(resourceData.Structure.Schema.Fields)
+// 	}
+// 	return
+// }
 
 // nodeColIndex finds the column index for a given node
-func nodeColIndex(node SelectExpr, from map[string]*StructureData) (idx int, err error) {
-	if nse, ok := node.(*AliasedExpr); ok && node != nil {
-		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
-			for _, resourceData := range from {
-				for _, f := range resourceData.Structure.Schema.Fields {
-					if f.Name == colName.Name.String() {
-						return
-					}
-					idx++
-				}
-			}
-		}
-		return -1, nil
-	}
+// func nodeColIndex(node SelectExpr, from map[string]*StructureData) (idx int, err error) {
+// 	if nse, ok := node.(*AliasedExpr); ok && node != nil {
+// 		if colName, ok := nse.Expr.(*ColName); ok && node != nil {
+// 			for _, resourceData := range from {
+// 				for _, f := range resourceData.Structure.Schema.Fields {
+// 					if f.Name == colName.Name.String() {
+// 						return
+// 					}
+// 					idx++
+// 				}
+// 			}
+// 		}
+// 		return -1, nil
+// 	}
 
-	return 0, fmt.Errorf("node is not a non-star select expression")
-}
+// 	return 0, fmt.Errorf("node is not a non-star select expression")
+// }
 
 // intSeries returns a slice sized by length that counts from start upward
-func intSeries(start, length int) (series []int) {
-	series = make([]int, length)
-	for i := 0; i < length; i++ {
-		series[i] = i + start
-	}
-	return
-}
+// func intSeries(start, length int) (series []int) {
+// 	series = make([]int, length)
+// 	for i := 0; i < length; i++ {
+// 		series[i] = i + start
+// 	}
+// 	return
+// }
 
 // masterRowLength sums all fields of a dataset's children
-func masterRowLength(from map[string]*StructureData) (l int) {
-	for _, resourceData := range from {
-		l += len(resourceData.Structure.Schema.Fields)
-	}
-	return
-}
-
-// rowsEqual checks to see if two rows are identitical
-func rowsEqual(a, b [][]byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, ai := range a {
-		if !bytes.Equal(ai, b[i]) {
-			return false
-		}
-	}
-	return true
-}
+// func masterRowLength(from map[string]*StructureData) (l int) {
+// 	for _, resourceData := range from {
+// 		l += len(resourceData.Structure.Schema.Fields)
+// 	}
+// 	return
+// }
 
 // nextRow generates the next master row for a dataset from the source datasets
-func nextRow(numStructures int, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
-	if incrIndicies(indicies, lengths) == nil {
-		return nil
-	} else {
-		row = make([][]byte, rowLen)
-		k := 0
-		for i := 0; i < numStructures; i++ {
-			// fmt.Println(i, indicies[i])
-			for _, cell := range data[i][indicies[i]] {
-				row[k] = cell
-				k++
-			}
-		}
-	}
-	return
-}
+// func nextRow(numStructures int, indicies, lengths []int, rowLen int, data [][][][]byte) (row [][]byte) {
+// 	if incrIndicies(indicies, lengths) == nil {
+// 		return nil
+// 	} else {
+// 		row = make([][]byte, rowLen)
+// 		k := 0
+// 		for i := 0; i < numStructures; i++ {
+// 			// fmt.Println(i, indicies[i])
+// 			for _, cell := range data[i][indicies[i]] {
+// 				row[k] = cell
+// 				k++
+// 			}
+// 		}
+// 	}
+// 	return
+// }
 
 // incrIndicies increments the index-counter, returning nil when
 // counting is complete
-func incrIndicies(indicies, lengths []int) []int {
-	for i := len(indicies) - 1; i >= 0; i-- {
-		if indicies[i] < lengths[i]-1 {
-			indicies[i]++
-			break
-		} else {
-			if i-1 <= 0 && indicies[0] == lengths[0]-1 {
-				return nil
-			}
-			indicies[i] = 0
-			indicies[i-1]++
-			break
-		}
-	}
+// func incrIndicies(indicies, lengths []int) []int {
+// 	for i := len(indicies) - 1; i >= 0; i-- {
+// 		if indicies[i] < lengths[i]-1 {
+// 			indicies[i]++
+// 			break
+// 		} else {
+// 			if i-1 <= 0 && indicies[0] == lengths[0]-1 {
+// 				return nil
+// 			}
+// 			indicies[i] = 0
+// 			indicies[i-1]++
+// 			break
+// 		}
+// 	}
 
-	return indicies
-}
+// 	return indicies
+// }
 
 // jumpRow advances
-func jumpRow(indicies, lengths []int) bool {
-	for i, idx := range indicies {
-		if i == 0 {
-			idx++
-			if idx == lengths[i] {
-				return true
-			}
-		} else if i == len(indicies)-1 {
-			idx = -1
-		} else {
-			idx = 0
-		}
-	}
-	return false
-}
+// func jumpRow(indicies, lengths []int) bool {
+// 	for i, idx := range indicies {
+// 		if i == 0 {
+// 			idx++
+// 			if idx == lengths[i] {
+// 				return true
+// 			}
+// 		} else if i == len(indicies)-1 {
+// 			idx = -1
+// 		} else {
+// 			idx = 0
+// 		}
+// 	}
+// 	return false
+// }

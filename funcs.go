@@ -1,27 +1,24 @@
 package dataset_sql
 
 import (
-	// "bytes"
-	// "encoding/binary"
 	"fmt"
-	// "strconv"
 
 	"github.com/qri-io/dataset/datatypes"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
 type AggFunc interface {
-	Eval(row [][]byte) (q.Type, []byte, error)
+	Eval() (q.Type, []byte, error)
 	Value() []byte
 }
 
 // AggregateFuncs extracts a slice of any aggregate functions from an AST, while also writing
 // pointers to newly-generated funcs to the AST
-func AggregateFuncs(root SQLNode, schemas map[string]*StructureData) (funcs []AggFunc, err error) {
+func AggregateFuncs(root Statement) (funcs []AggFunc, err error) {
 	err = root.WalkSubtree(func(node SQLNode) (bool, error) {
 		switch t := node.(type) {
 		case *FuncExpr:
-			fn, err := t.Function(schemas)
+			fn, err := t.Function()
 			if err != nil {
 				return false, err
 			}
@@ -33,8 +30,8 @@ func AggregateFuncs(root SQLNode, schemas map[string]*StructureData) (funcs []Ag
 }
 
 // Function gives the backing function to perform
-func (node *FuncExpr) Function(from map[string]*StructureData) (fn AggFunc, err error) {
-	fn, err = node.newAggFunc(node.Name.Lowered(), from)
+func (node *FuncExpr) Function() (fn AggFunc, err error) {
+	fn, err = node.newAggFunc(node.Name.Lowered())
 	if err != nil {
 		return
 	}
@@ -55,6 +52,7 @@ type numericAggFunc interface {
 	Value() float32
 }
 
+// TODO
 // type AggFuncBitAnd struct{ Exprs SelecExprs value float32 }
 // type AggFuncBitOr struct{ Exprs SelecExprs value float32 }
 // type AggFuncBitXor struct{ Exprs SelecExprs value float32 }
@@ -67,10 +65,10 @@ type numericAggFunc interface {
 // type AggFuncVarSamp struct{ Value float32 }
 // type AggFuncVariance struct{ Value float32 }
 
-func (node *FuncExpr) newAggFunc(name string, from map[string]*StructureData) (AggFunc, error) {
-	if !datatypes.EachNumeric(node.Exprs.FieldTypes(from)) {
-		return nil, fmt.Errorf("sum only works with numeric fields")
-	}
+func (node *FuncExpr) newAggFunc(name string) (AggFunc, error) {
+	// if !datatypes.EachNumeric(node.Exprs.FieldTypes(from)) {
+	// 	return nil, fmt.Errorf("sum only works with numeric fields")
+	// }
 
 	if len(node.Exprs) != 1 {
 		return nil, fmt.Errorf("too many arguments for aggregate function: %s", name)
@@ -105,10 +103,8 @@ func (af *aggFunc) Datatype() datatypes.Type {
 	return datatypes.Float
 }
 
-func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
-	fmt.Printf("EVAL: %#v\n", row)
-
-	ts, vs, err := af.Exprs.Values(row)
+func (af *aggFunc) Eval() (q.Type, []byte, error) {
+	ts, vs, err := af.Exprs.Values()
 	if err != nil {
 		return q.Type_NULL_TYPE, nil, err
 	}
@@ -191,3 +187,44 @@ func (a *minFunc) Eval(val float32) {
 	}
 }
 func (a minFunc) Value() float32 { return a.min }
+
+func (nodes SelectExprs) Values() (types []q.Type, vals [][]byte, err error) {
+	for _, se := range nodes {
+		switch node := se.(type) {
+		case *StarExpr:
+			ts, vs, e := node.Values()
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, ts...)
+			vals = append(vals, vs...)
+		case *AliasedExpr:
+			t, v, e := node.Expr.Eval()
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, t)
+			vals = append(vals, v)
+		case Nextval:
+			t, v, e := node.Value()
+			if e != nil {
+				err = e
+				return
+			}
+			types = append(types, t)
+			vals = append(vals, v)
+		}
+	}
+	return
+}
+
+func (node *StarExpr) Values() ([]q.Type, [][]byte, error) {
+	return []q.Type{q.Type_NULL_TYPE}, nil, NotYetImplemented("star expession values")
+}
+
+func (node *Nextval) Value() (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval Nextval")
+}

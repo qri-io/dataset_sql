@@ -14,12 +14,12 @@ var (
 	rePctPct = regexp.MustCompile("%%")
 )
 
-func (node *ComparisonExpr) Compare(row [][]byte) (bool, error) {
-	_, left, err := node.Left.Eval(row)
+func (node *ComparisonExpr) Compare() (bool, error) {
+	_, left, err := node.Left.Eval()
 	if err != nil {
 		return false, err
 	}
-	_, right, err := node.Right.Eval(row)
+	_, right, err := node.Right.Eval()
 	if err != nil {
 		return false, err
 	}

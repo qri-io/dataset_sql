@@ -1,6 +1,8 @@
 package dataset_sql
 
 import (
+	"bytes"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
@@ -13,7 +15,7 @@ type SourceRow map[string][][]byte
 
 // NewSourceRowGenerator initializes a source row generator
 func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.Dataset) (*SourceRowGenerator, error) {
-	srg := &SourceRowGenerator{store: store}
+	srg := &SourceRowGenerator{store: store, init: true}
 	for name, ds := range resources {
 		rdr := &rowReader{
 			name: name,
@@ -34,14 +36,22 @@ func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.D
 type SourceRowGenerator struct {
 	store   cafs.Filestore
 	readers []*rowReader
+	init    bool
 }
 
-func (srg *SourceRowGenerator) Next() SourceRow {
+func (srg *SourceRowGenerator) Next() bool {
 	if srg.readers[0].done {
-		return nil
+		return false
 	}
+
+	// need init to skip initial call to Next.
+	if srg.init {
+		srg.init = false
+		return true
+	}
+
 	srg.incrRow()
-	return srg.row()
+	return true
 }
 
 func (srg *SourceRowGenerator) incrRow() error {
@@ -56,7 +66,7 @@ func (srg *SourceRowGenerator) incrRow() error {
 	return nil
 }
 
-func (srg *SourceRowGenerator) row() SourceRow {
+func (srg *SourceRowGenerator) Row() SourceRow {
 	sr := SourceRow{}
 	for _, rdr := range srg.readers {
 		sr[rdr.name] = rdr.row
@@ -80,6 +90,9 @@ type rowReader struct {
 func (rr *rowReader) Next() (err error) {
 	rr.i++
 	rr.row, err = rr.reader.ReadRow()
+	if err != nil {
+		rr.done = true
+	}
 	return
 }
 
@@ -95,22 +108,60 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 	return nil
 }
 
-func NewSourceRowFilter(ast Statement) *SourceRowFilter {
-	return &SourceRowFilter{}
+func NewSourceRowFilter(ast Statement) (*SourceRowFilter, error) {
+	// TODO - generalize limit/offset to Statement searching
+	// limit, offset, err := ast.Limit.Counts()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	funcs, err := AggregateFuncs(ast)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SourceRowFilter{
+		limit:   -1,
+		offset:  0,
+		calcAll: true,
+		agg:     len(funcs) > 0,
+	}, nil
 }
 
 // SourceRowFilter uses type-populated AST to evaluate candidate SourceRows
 // to see if they should be added to the resulting dataset internal state
 // for example, things like current status in a LIMIT / OFFSET
 type SourceRowFilter struct {
-	ast    Statement
-	added  int
-	limit  int
-	offset int
+	ast     Statement
+	added   int
+	limit   int
+	offset  int
+	calcAll bool
+	agg     bool
 }
 
 // Filter returns weather the row should be allowed to pass through
 // to the table
-func (srf *SourceRowFilter) Filter() bool {
+func (srf *SourceRowFilter) Filter(sr SourceRow) bool {
+	return !srf.agg
+}
+
+// Done indicates we don't need to iterate anymore
+func (srf *SourceRowFilter) Done() bool {
+	// TODO - lots of things will complicate this clause, such
+	// as needing to calculate all results to sort, etc.
+	return !srf.calcAll && srf.limit > 0 && srf.added == srf.limit
+}
+
+// rowsEqual checks to see if two rows are identitical
+func rowsEqual(a, b [][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, ai := range a {
+		if !bytes.Equal(ai, b[i]) {
+			return false
+		}
+	}
 	return true
 }

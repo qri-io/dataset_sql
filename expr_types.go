@@ -1,10 +1,11 @@
 package dataset_sql
 
 import (
+	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
 
-func (nodes SelectExprs) FieldTypes(from map[string]*StructureData) (types []datatypes.Type) {
+func (nodes SelectExprs) FieldTypes(from map[string]*dataset.Structure) (types []datatypes.Type) {
 	for _, se := range nodes {
 		switch node := se.(type) {
 		case *StarExpr:
@@ -19,18 +20,18 @@ func (nodes SelectExprs) FieldTypes(from map[string]*StructureData) (types []dat
 	return
 }
 
-func (node *StarExpr) FieldTypes(from map[string]*StructureData) (types []datatypes.Type) {
+func (node *StarExpr) FieldTypes(from map[string]*dataset.Structure) (types []datatypes.Type) {
 	// TODO - test this
 	if tbl := from[node.TableName.String()]; tbl != nil {
-		types = make([]datatypes.Type, len(tbl.Structure.Schema.Fields))
-		for i, f := range tbl.Structure.Schema.Fields {
+		types = make([]datatypes.Type, len(tbl.Schema.Fields))
+		for i, f := range tbl.Schema.Fields {
 			types[i] = f.Type
 		}
 	}
 	return
 }
 
-func (node Nextval) FieldType(from map[string]*StructureData) datatypes.Type {
+func (node Nextval) FieldType(from map[string]*dataset.Structure) datatypes.Type {
 	// TODO
 	return datatypes.Any
 }
@@ -38,12 +39,12 @@ func (node Nextval) FieldType(from map[string]*StructureData) datatypes.Type {
 // FieldType returns a string representation of the type of field
 // where datatype is one of: "", "string", "integer", "float", "boolean", "date"
 // TODO - this may need rethinking.
-func (node *AliasedExpr) FieldType(from map[string]*StructureData) datatypes.Type {
+func (node *AliasedExpr) FieldType(from map[string]*dataset.Structure) datatypes.Type {
 	switch n := node.Expr.(type) {
 	case *ColName:
 		colName := node.Expr.(*ColName)
 		for _, resourceData := range from {
-			for _, f := range resourceData.Structure.Schema.Fields {
+			for _, f := range resourceData.Schema.Fields {
 				// fmt.Println(name.Name.String(), f.Name)
 				if colName.Name.String() == f.Name {
 					return f.Type

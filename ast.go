@@ -61,7 +61,7 @@ type SQLNode interface {
 	// of the subtree, but not the current one. Walking
 	// must be interrupted if visit returns an error.
 	WalkSubtree(visit Visit) error
-	Eval(row [][]byte) (pbquery.Type, []byte, error)
+	Eval() (pbquery.Type, []byte, error)
 }
 
 // Visit defines the signature of a function that
@@ -1615,7 +1615,8 @@ type ColName struct {
 	// It's a placeholder for analyzers to store
 	// additional data, typically info about which
 	// table or column this node references.
-	Metadata  interface{}
+	Metadata  StructureRef
+	Value     []byte
 	Name      ColIdent
 	Qualifier TableName
 }
@@ -2215,7 +2216,7 @@ func (node *Limit) Counts() (limit, offset int64, err error) {
 		return 0, 0, nil
 	}
 	if node.Rowcount != nil {
-		_, lb, err := node.Rowcount.Eval(nil)
+		_, lb, err := node.Rowcount.Eval()
 		if err != nil {
 			return 0, 0, err
 		}
@@ -2226,7 +2227,7 @@ func (node *Limit) Counts() (limit, offset int64, err error) {
 	}
 
 	if node.Offset != nil {
-		_, ob, err := node.Offset.Eval(nil)
+		_, ob, err := node.Offset.Eval()
 		if err != nil {
 			return 0, 0, err
 		}
