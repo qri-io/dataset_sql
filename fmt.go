@@ -2,7 +2,6 @@ package dataset_sql
 
 import (
 	"fmt"
-	// "github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )

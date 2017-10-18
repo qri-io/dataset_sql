@@ -197,6 +197,7 @@ func (node *CollateExpr) Eval(row [][]byte) (q.Type, []byte, error) {
 
 // TODO - finish
 func (node *FuncExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	fmt.Println("eval func expr", node.Name.String())
 	return node.fn.Eval(row)
 }
 
@@ -281,6 +282,191 @@ func (node *StarExpr) Values(row [][]byte) ([]q.Type, [][]byte, error) {
 }
 
 func (node *Nextval) Value(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node TableName) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node OrderBy) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node GroupBy) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node TableExprs) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Set) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node Comments) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node SelectExprs) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Limit) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node Columns) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node OnDup) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node TableNames) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node UpdateExprs) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node TableIdent) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node ColIdent) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node IndexHints) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node Exprs) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *ConvertType) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *When) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Order) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *UpdateExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *StarExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node Nextval) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Select) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *AliasedTableExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *ParenTableExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *JoinTableExpr) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Union) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *ParenSelect) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Insert) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Delete) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Update) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *DDL) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node Values) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Show) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *Use) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *OtherRead) Eval(row [][]byte) (q.Type, []byte, error) {
+	// TODO
+	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
+}
+
+func (node *OtherAdmin) Eval(row [][]byte) (q.Type, []byte, error) {
 	// TODO
 	return q.Type_NULL_TYPE, nil, NotYetImplemented("eval CaseExpr")
 }

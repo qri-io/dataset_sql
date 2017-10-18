@@ -274,7 +274,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		if err != nil {
 			return result, nil, err
 		}
-		fmt.Println(row)
+		// fmt.Println(row)
+		for _, r := range row {
+			fmt.Printf(string(r))
+		}
 		w.WriteRow(row)
 	}
 
@@ -369,19 +372,29 @@ func populateColNames(stmt *Select, from map[string]*StructureData) error {
 // projectRow takes a master row & fits it to the desired result, evaluating any expressions along the way.
 func projectRow(stmt SelectExprs, projection []int, source [][]byte) (row [][]byte, err error) {
 	row = make([][]byte, len(projection))
-	for i, j := range projection {
-		if j == -1 {
-			switch node := stmt[i].(type) {
-			case *AliasedExpr:
-				_, val, e := node.Expr.Eval(row)
-				if e != nil {
-					return row, e
-				}
-				row[i] = val
-			}
-		} else {
-			row[i] = source[j]
+	for i, _ := range projection {
+		_, val, e := stmt[i].Eval(row)
+		if e != nil {
+			return row, e
 		}
+		row[i] = val
+		// if j == -1 {
+		// 	_, val, e := stmt[i].Eval(row)
+		// 	if e != nil {
+		// 		return row, e
+		// 	}
+		// 	row[i] = val
+		// 	// switch node := stmt[i].(type) {
+		// 	// case *AliasedExpr:
+		// 	// 	_, val, e := node.Expr.Eval(row)
+		// 	// 	if e != nil {
+		// 	// 		return row, e
+		// 	// 	}
+		// 	// 	row[i] = val
+		// 	// }
+		// } else {
+		// 	row[i] = source[j]
+		// }
 	}
 	return
 }

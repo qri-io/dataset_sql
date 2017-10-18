@@ -1,0 +1,430 @@
+{
+  "type": "*dataset_sql.Select",
+  "SQLNode": {
+    "Cache": "",
+    "Comments": null,
+    "Distinct": "",
+    "Hints": "",
+    "SelectExprs": [
+      {
+        "Expr": {
+          "Qualifier": "",
+          "Name": "sum",
+          "Distinct": false,
+          "Exprs": [
+            {
+              "Expr": {
+                "Metadata": null,
+                "Field": null,
+                "RowIndex": 0,
+                "Name": "col_one",
+                "Qualifier": {
+                  "Name": "",
+                  "Qualifier": ""
+                }
+              },
+              "As": ""
+            }
+          ]
+        },
+        "As": ""
+      }
+    ],
+    "From": [
+      {
+        "Expr": {
+          "Name": "table_2",
+          "Qualifier": ""
+        },
+        "As": "",
+        "Hints": null
+      }
+    ],
+    "Where": {
+      "Type": "where",
+      "Expr": {
+        "Operator": "\u003e",
+        "Left": {
+          "Metadata": null,
+          "Field": null,
+          "RowIndex": 0,
+          "Name": "col_one",
+          "Qualifier": {
+            "Name": "",
+            "Qualifier": ""
+          }
+        },
+        "Right": {
+          "Type": 1,
+          "Val": "MjAwMA=="
+        },
+        "Escape": null
+      }
+    },
+    "GroupBy": null,
+    "Having": null,
+    "OrderBy": null,
+    "Limit": null,
+    "Lock": ""
+  },
+  "Children": [
+    {
+      "type": "dataset_sql.Comments",
+      "SQLNode": null,
+      "Children": null
+    },
+    {
+      "type": "dataset_sql.SelectExprs",
+      "SQLNode": [
+        {
+          "Expr": {
+            "Qualifier": "",
+            "Name": "sum",
+            "Distinct": false,
+            "Exprs": [
+              {
+                "Expr": {
+                  "Metadata": null,
+                  "Field": null,
+                  "RowIndex": 0,
+                  "Name": "col_one",
+                  "Qualifier": {
+                    "Name": "",
+                    "Qualifier": ""
+                  }
+                },
+                "As": ""
+              }
+            ]
+          },
+          "As": ""
+        }
+      ],
+      "Children": [
+        {
+          "type": "*dataset_sql.AliasedExpr",
+          "SQLNode": {
+            "Expr": {
+              "Qualifier": "",
+              "Name": "sum",
+              "Distinct": false,
+              "Exprs": [
+                {
+                  "Expr": {
+                    "Metadata": null,
+                    "Field": null,
+                    "RowIndex": 0,
+                    "Name": "col_one",
+                    "Qualifier": {
+                      "Name": "",
+                      "Qualifier": ""
+                    }
+                  },
+                  "As": ""
+                }
+              ]
+            },
+            "As": ""
+          },
+          "Children": [
+            {
+              "type": "*dataset_sql.FuncExpr",
+              "SQLNode": {
+                "Qualifier": "",
+                "Name": "sum",
+                "Distinct": false,
+                "Exprs": [
+                  {
+                    "Expr": {
+                      "Metadata": null,
+                      "Field": null,
+                      "RowIndex": 0,
+                      "Name": "col_one",
+                      "Qualifier": {
+                        "Name": "",
+                        "Qualifier": ""
+                      }
+                    },
+                    "As": ""
+                  }
+                ]
+              },
+              "Children": [
+                {
+                  "type": "dataset_sql.TableIdent",
+                  "SQLNode": "",
+                  "Children": null
+                },
+                {
+                  "type": "dataset_sql.ColIdent",
+                  "SQLNode": "sum",
+                  "Children": null
+                },
+                {
+                  "type": "dataset_sql.SelectExprs",
+                  "SQLNode": [
+                    {
+                      "Expr": {
+                        "Metadata": null,
+                        "Field": null,
+                        "RowIndex": 0,
+                        "Name": "col_one",
+                        "Qualifier": {
+                          "Name": "",
+                          "Qualifier": ""
+                        }
+                      },
+                      "As": ""
+                    }
+                  ],
+                  "Children": [
+                    {
+                      "type": "*dataset_sql.AliasedExpr",
+                      "SQLNode": {
+                        "Expr": {
+                          "Metadata": null,
+                          "Field": null,
+                          "RowIndex": 0,
+                          "Name": "col_one",
+                          "Qualifier": {
+                            "Name": "",
+                            "Qualifier": ""
+                          }
+                        },
+                        "As": ""
+                      },
+                      "Children": [
+                        {
+                          "type": "*dataset_sql.ColName",
+                          "SQLNode": {
+                            "Metadata": null,
+                            "Field": null,
+                            "RowIndex": 0,
+                            "Name": "col_one",
+                            "Qualifier": {
+                              "Name": "",
+                              "Qualifier": ""
+                            }
+                          },
+                          "Children": [
+                            {
+                              "type": "dataset_sql.ColIdent",
+                              "SQLNode": "col_one",
+                              "Children": null
+                            },
+                            {
+                              "type": "dataset_sql.TableName",
+                              "SQLNode": {
+                                "Name": "",
+                                "Qualifier": ""
+                              },
+                              "Children": [
+                                {
+                                  "type": "dataset_sql.TableIdent",
+                                  "SQLNode": "",
+                                  "Children": null
+                                },
+                                {
+                                  "type": "dataset_sql.TableIdent",
+                                  "SQLNode": "",
+                                  "Children": null
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "dataset_sql.ColIdent",
+                          "SQLNode": "",
+                          "Children": null
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "dataset_sql.ColIdent",
+              "SQLNode": "",
+              "Children": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dataset_sql.TableExprs",
+      "SQLNode": [
+        {
+          "Expr": {
+            "Name": "table_2",
+            "Qualifier": ""
+          },
+          "As": "",
+          "Hints": null
+        }
+      ],
+      "Children": [
+        {
+          "type": "*dataset_sql.AliasedTableExpr",
+          "SQLNode": {
+            "Expr": {
+              "Name": "table_2",
+              "Qualifier": ""
+            },
+            "As": "",
+            "Hints": null
+          },
+          "Children": [
+            {
+              "type": "dataset_sql.TableName",
+              "SQLNode": {
+                "Name": "table_2",
+                "Qualifier": ""
+              },
+              "Children": [
+                {
+                  "type": "dataset_sql.TableIdent",
+                  "SQLNode": "table_2",
+                  "Children": null
+                },
+                {
+                  "type": "dataset_sql.TableIdent",
+                  "SQLNode": "",
+                  "Children": null
+                }
+              ]
+            },
+            {
+              "type": "dataset_sql.TableIdent",
+              "SQLNode": "",
+              "Children": null
+            },
+            {
+              "type": "*dataset_sql.IndexHints",
+              "SQLNode": null,
+              "Children": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "*dataset_sql.Where",
+      "SQLNode": {
+        "Type": "where",
+        "Expr": {
+          "Operator": "\u003e",
+          "Left": {
+            "Metadata": null,
+            "Field": null,
+            "RowIndex": 0,
+            "Name": "col_one",
+            "Qualifier": {
+              "Name": "",
+              "Qualifier": ""
+            }
+          },
+          "Right": {
+            "Type": 1,
+            "Val": "MjAwMA=="
+          },
+          "Escape": null
+        }
+      },
+      "Children": [
+        {
+          "type": "*dataset_sql.ComparisonExpr",
+          "SQLNode": {
+            "Operator": "\u003e",
+            "Left": {
+              "Metadata": null,
+              "Field": null,
+              "RowIndex": 0,
+              "Name": "col_one",
+              "Qualifier": {
+                "Name": "",
+                "Qualifier": ""
+              }
+            },
+            "Right": {
+              "Type": 1,
+              "Val": "MjAwMA=="
+            },
+            "Escape": null
+          },
+          "Children": [
+            {
+              "type": "*dataset_sql.ColName",
+              "SQLNode": {
+                "Metadata": null,
+                "Field": null,
+                "RowIndex": 0,
+                "Name": "col_one",
+                "Qualifier": {
+                  "Name": "",
+                  "Qualifier": ""
+                }
+              },
+              "Children": [
+                {
+                  "type": "dataset_sql.ColIdent",
+                  "SQLNode": "col_one",
+                  "Children": null
+                },
+                {
+                  "type": "dataset_sql.TableName",
+                  "SQLNode": {
+                    "Name": "",
+                    "Qualifier": ""
+                  },
+                  "Children": [
+                    {
+                      "type": "dataset_sql.TableIdent",
+                      "SQLNode": "",
+                      "Children": null
+                    },
+                    {
+                      "type": "dataset_sql.TableIdent",
+                      "SQLNode": "",
+                      "Children": null
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "*dataset_sql.SQLVal",
+              "SQLNode": {
+                "Type": 1,
+                "Val": "MjAwMA=="
+              },
+              "Children": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dataset_sql.GroupBy",
+      "SQLNode": null,
+      "Children": null
+    },
+    {
+      "type": "*dataset_sql.Where",
+      "SQLNode": null,
+      "Children": null
+    },
+    {
+      "type": "dataset_sql.OrderBy",
+      "SQLNode": null,
+      "Children": null
+    },
+    {
+      "type": "*dataset_sql.Limit",
+      "SQLNode": null,
+      "Children": null
+    }
+  ]
+}

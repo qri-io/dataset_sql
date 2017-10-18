@@ -61,6 +61,7 @@ type SQLNode interface {
 	// of the subtree, but not the current one. Walking
 	// must be interrupted if visit returns an error.
 	WalkSubtree(visit Visit) error
+	Eval(row [][]byte) (pbquery.Type, []byte, error)
 }
 
 // Visit defines the signature of a function that
@@ -1210,7 +1211,7 @@ func (node *Where) WalkSubtree(visit Visit) error {
 // Expr represents an expression.
 type Expr interface {
 	iExpr()
-	Eval(row [][]byte) (pbquery.Type, []byte, error)
+	// Eval(row [][]byte) (pbquery.Type, []byte, error)
 	SQLNode
 }
 

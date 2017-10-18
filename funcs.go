@@ -1,10 +1,10 @@
 package dataset_sql
 
 import (
-	"bytes"
-	"encoding/binary"
+	// "bytes"
+	// "encoding/binary"
 	"fmt"
-	"strconv"
+	// "strconv"
 
 	"github.com/qri-io/dataset/datatypes"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
@@ -102,7 +102,7 @@ func (af *aggFunc) Datatype() datatypes.Type {
 }
 
 func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
-	fmt.Printf("%#v\n", row)
+	fmt.Printf("EVAL: %#v\n", row)
 	ts, vs, err := af.Exprs.Values(row)
 	if err != nil {
 		return q.Type_NULL_TYPE, nil, err
@@ -112,17 +112,17 @@ func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
 	for i, val := range vs {
 		switch ts[i] {
 		case q.Type_INT64:
-			value, err := readInt(val)
+			value, err := datatypes.ParseInteger(val)
 			if err != nil {
 				return q.Type_NULL_TYPE, nil, err
 			}
 			v = float32(value)
 		case q.Type_FLOAT32:
-			value, err := readFloat32(val)
+			value, err := datatypes.ParseFloat(val)
 			if err != nil {
 				return q.Type_NULL_TYPE, nil, err
 			}
-			v = value
+			v = float32(value)
 		}
 		af.fn.Eval(v)
 	}
@@ -132,17 +132,22 @@ func (af *aggFunc) Eval(row [][]byte) (q.Type, []byte, error) {
 }
 
 func (af *aggFunc) Value() []byte {
-	return []byte(strconv.FormatFloat(float64(af.fn.Value()), 'f', -1, 32))
+	fmt.Println(af.Name, af.fn.Value())
+	val, err := datatypes.Float.ValueToBytes(af.fn.Value())
+	if err != nil {
+		return nil
+	}
+	return val
 }
 
-func readInt(data []byte) (int64, error) {
-	return binary.ReadVarint(bytes.NewBuffer(data))
-}
+// func readInt(data []byte) (int64, error) {
+// 	return binary.ReadVarint(bytes.NewBuffer(data))
+// }
 
-func readFloat32(data []byte) (float32, error) {
-	f64, err := strconv.ParseFloat(string(data), 32)
-	return float32(f64), err
-}
+// func readFloat32(data []byte) (float32, error) {
+// 	f64, err := strconv.ParseFloat(string(data), 32)
+// 	return float32(f64), err
+// }
 
 type avgFunc struct {
 	count int
