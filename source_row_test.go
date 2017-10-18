@@ -5,12 +5,12 @@ import (
 )
 
 func TestSourceRowGenerator(t *testing.T) {
-	cases := []struct {
-	}{}
+	// cases := []struct {
+	// }{}
 
-	for i, c := range cases {
+	// for i, c := range cases {
 
-	}
+	// }
 }
 
 func TestSourceRowFilter(t *testing.T) {
@@ -20,7 +20,12 @@ func TestSourceRowFilter(t *testing.T) {
 		return
 	}
 
-	srg := NewSourceRowFilter(ast)
+	srg, err := NewSourceRowFilter(ast)
+	if err != nil {
+		t.Errorf("errog creating source row filter: %s", err.Error())
+		return
+	}
+
 	cases := []struct {
 		row    SourceRow
 		expect bool
@@ -31,7 +36,7 @@ func TestSourceRowFilter(t *testing.T) {
 	for i, c := range cases {
 		got := srg.Filter(c.row)
 		if got != c.expect {
-			t.Errorf("case")
+			t.Errorf("case %d fail %t != %t", i, c.expect, got)
 		}
 	}
 }
