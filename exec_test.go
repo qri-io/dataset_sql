@@ -3,7 +3,6 @@ package dataset_sql
 import (
 	"bytes"
 	"encoding/csv"
-	"fmt"
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/cafs/memfs"
@@ -22,67 +21,17 @@ type execTestCase struct {
 }
 
 func TestSelectFields(t *testing.T) {
-	created := &dataset.Field{Name: "created", Type: datatypes.Date}
-	title := &dataset.Field{Name: "title", Type: datatypes.String}
-	views := &dataset.Field{Name: "views", Type: datatypes.Integer}
-	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
-	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
-
-	t1Struct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
-		o.Format = dataset.CsvDataFormat
-		o.Fields = []*dataset.Field{created, title, views, rating, notes}
-	})
-
-	t1Data := generate.RandomData(t1Struct, func(o *generate.RandomDataOpts) {
-		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
-		o.NumRandRecords = 9
-	})
-
-	t1 := &dataset.Dataset{
-		Data:      datastore.NewKey("t1Data"),
-		Structure: t1Struct,
-	}
-
-	t2Struct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
-		o.Format = dataset.CsvDataFormat
-		o.Fields = []*dataset.Field{created, title, views, rating, notes}
-	})
-
-	t2Data := generate.RandomData(t2Struct, func(o *generate.RandomDataOpts) {
-		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
-		o.NumRandRecords = 9
-	})
-
-	t2 := &dataset.Dataset{
-		Data:      datastore.NewKey("t2"),
-		Structure: t2Struct,
-	}
-
-	// store := datastore.NewMapDatastore()
-	store := memfs.NewMapstore()
-	t1DataPath, err := store.Put(memfs.NewMemfileBytes("t1data", t1Data), true)
+	store, resources, err := makeTestData()
 	if err != nil {
-		t.Error(err)
-		return
-	}
-	t1.Data = t1DataPath
-	t1path, err := dsfs.SaveDataset(store, t1, true)
-	if err != nil {
-		t.Error(err)
+		t.Errorf("error creating test data: %s", err.Error())
 		return
 	}
 
-	t2DataPath, err := store.Put(memfs.NewMemfileBytes("t2Data", t2Data), true)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t2.Data = t2DataPath
-	t2path, err := dsfs.SaveDataset(store, t2, true)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	created := resources["t1"].Structure.Schema.Fields[0]
+	title := resources["t1"].Structure.Schema.Fields[1]
+	views := resources["t1"].Structure.Schema.Fields[2]
+	rating := resources["t1"].Structure.Schema.Fields[3]
+	notes := resources["t1"].Structure.Schema.Fields[4]
 
 	cases := []execTestCase{
 		{"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
@@ -93,30 +42,24 @@ func TestSelectFields(t *testing.T) {
 		{"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
-		{"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
-
+		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		{"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1},
+		{"select sum(5) from t1", nil, []*dataset.Field{
+			&dataset.Field{Name: "sum", Type: datatypes.Float},
+		}, 1},
+		// {"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
+		// 	&dataset.Field{Name: "sum", Type: datatypes.Float},
+		// 	&dataset.Field{Name: "avg", Type: datatypes.Float},
+		// 	&dataset.Field{Name: "count", Type: datatypes.Float},
+		// 	&dataset.Field{Name: "max", Type: datatypes.Float},
+		// 	&dataset.Field{Name: "min", Type: datatypes.Float},
+		// }, 1},
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2},
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
 	}
 
-	t1ds, err := dsfs.LoadDataset(store, t1path)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t2ds, err := dsfs.LoadDataset(store, t2path)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	ns := map[string]*dataset.Dataset{
-		"t1": t1ds,
-		"t2": t2ds,
-	}
-
-	runCases(store, ns, cases, t)
+	runCases(store, resources, cases, t)
 	// for i, c := range cases {
 	// 	stmt, err := Parse(c.statement)
 	// 	if err != nil {
@@ -276,7 +219,7 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 		if len(results.Schema.Fields) != len(c.fields) {
 			t.Errorf("case %d field length mismatch. expected: %d, got: %d", i, len(c.fields), len(results.Schema.Fields))
 			// fmt.Println(c.fields)
-			fmt.Println(results.Schema.FieldNames())
+			// fmt.Println(results.Schema.FieldNames())
 			continue
 		}
 
@@ -310,4 +253,101 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 		// table.AppendBulk(records)
 		// table.Render()
 	}
+}
+
+func makeTestData() (store cafs.Filestore, datasets map[string]*dataset.Dataset, err error) {
+	created := &dataset.Field{Name: "created", Type: datatypes.Date}
+	title := &dataset.Field{Name: "title", Type: datatypes.String}
+	views := &dataset.Field{Name: "views", Type: datatypes.Integer}
+	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
+	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
+
+	t1Struct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
+		o.Format = dataset.CsvDataFormat
+		o.Fields = []*dataset.Field{created, title, views, rating, notes}
+	})
+
+	// t1Data := generate.RandomData(t1Struct, func(o *generate.RandomDataOpts) {
+	// 	o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
+	// 	o.NumRandRecords = 9
+	// })
+	t1Data := []byte(`Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes
+Sun Dec 25 09:25:46 2016,title_2,68882,0.6893978118896484,note 2
+Sun Dec 25 09:25:46 2016,title_3,68882,0.6893978118896484,note 3
+Sun Dec 25 09:25:46 2016,title_4,68882,0.6893978118896484,note 4
+Sun Dec 25 09:25:46 2016,title_5,68882,0.6893978118896484,note 5
+Sun Dec 25 09:25:46 2016,title_6,68882,0.6893978118896484,note 6
+Sun Dec 25 09:25:46 2016,title_7,68882,0.6893978118896484,note 7
+Sun Dec 25 09:25:46 2016,title_8,68882,0.6893978118896484,note 8
+Sun Dec 25 09:25:46 2016,title_9,68882,0.6893978118896484,note 9
+Sun Dec 25 09:25:46 2016,title_10,68882,0.6893978118896484,note 10
+`)
+
+	t1 := &dataset.Dataset{
+		Data:      datastore.NewKey("t1Data"),
+		Structure: t1Struct,
+	}
+
+	t2Struct := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
+		o.Format = dataset.CsvDataFormat
+		o.Fields = []*dataset.Field{created, title, views, rating, notes}
+	})
+
+	// t2Data := generate.RandomData(t2Struct, func(o *generate.RandomDataOpts) {
+	// 	o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
+	// 	o.NumRandRecords = 9
+	// })
+	t2Data := []byte(`Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes
+Sun Dec 25 09:25:46 2016,title_t_2,68882,0.6893978118896484,note t2
+Sun Dec 25 09:25:46 2016,title_t_3,68882,0.6893978118896484,note t3
+Sun Dec 25 09:25:46 2016,title_t_4,68882,0.6893978118896484,note t4
+Sun Dec 25 09:25:46 2016,title_t_5,68882,0.6893978118896484,note t5
+Sun Dec 25 09:25:46 2016,title_t_6,68882,0.6893978118896484,note t6
+Sun Dec 25 09:25:46 2016,title_t_7,68882,0.6893978118896484,note t7
+Sun Dec 25 09:25:46 2016,title_t_8,68882,0.6893978118896484,note t8
+Sun Dec 25 09:25:46 2016,title_t_9,68882,0.6893978118896484,note t9
+Sun Dec 25 09:25:46 2016,title_t_10,68882,0.6893978118896484,note t10
+`)
+
+	t2 := &dataset.Dataset{
+		Data:      datastore.NewKey("t2"),
+		Structure: t2Struct,
+	}
+
+	store = memfs.NewMapstore()
+	t1DataPath, err := store.Put(memfs.NewMemfileBytes("t1data", t1Data), true)
+	if err != nil {
+		return nil, nil, err
+	}
+	t1.Data = t1DataPath
+	t1path, err := dsfs.SaveDataset(store, t1, true)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	t2DataPath, err := store.Put(memfs.NewMemfileBytes("t2Data", t2Data), true)
+	if err != nil {
+		return nil, nil, err
+	}
+	t2.Data = t2DataPath
+	t2path, err := dsfs.SaveDataset(store, t2, true)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	t1ds, err := dsfs.LoadDataset(store, t1path)
+	if err != nil {
+		return nil, nil, err
+	}
+	t2ds, err := dsfs.LoadDataset(store, t2path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	resources := map[string]*dataset.Dataset{
+		"t1": t1ds,
+		"t2": t2ds,
+	}
+
+	return store, resources, nil
 }

@@ -2,7 +2,6 @@ package dataset_sql
 
 import (
 	"fmt"
-	// "github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
@@ -160,6 +159,12 @@ EXPRESSIONS:
 						}
 					}
 				}
+			case *FuncExpr:
+				st.Schema.Fields = append(st.Schema.Fields, &dataset.Field{
+					Name: exp.Name.String(),
+					Type: exp.Datatype(),
+				})
+
 			case *Subquery:
 				return nil, NotYetImplemented("Subquerying")
 			}

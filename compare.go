@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/qri-io/dataset_sql/sqltypes"
+	pb "github.com/qri-io/dataset_sql/vt/proto/query"
 	"regexp"
-	// pb "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
 var (
@@ -14,28 +14,35 @@ var (
 	rePctPct = regexp.MustCompile("%%")
 )
 
-func (node *ComparisonExpr) Compare(row [][]byte) (bool, error) {
-	_, left, err := node.Left.Eval(row)
+func (node *ComparisonExpr) Compare() (bool, error) {
+	lt, left, err := node.Left.Eval()
 	if err != nil {
 		return false, err
 	}
-	_, right, err := node.Right.Eval(row)
-	if err != nil {
-		return false, err
-	}
-
-	l, err := sqltypes.BuildValue(left)
-	if err != nil {
-		return false, err
-	}
-	r, err := sqltypes.BuildValue(right)
+	rt, right, err := node.Right.Eval()
 	if err != nil {
 		return false, err
 	}
 
-	result, err := sqltypes.NullsafeCompare(l, r)
-	if err != nil {
-		return false, err
+	l := sqltypes.MakeTrusted(lt, left)
+	r := sqltypes.MakeTrusted(rt, right)
+
+	// l, err := sqltypes.BuildValue(left)
+	// if err != nil {
+	// 	return false, err
+	// }
+	// r, err := sqltypes.BuildValue(right)
+	// if err != nil {
+	// 	return false, err
+	// }
+	var result int
+	if lt == pb.Type_TEXT && rt == pb.Type_TEXT {
+		result = bytes.Compare(left, right)
+	} else {
+		result, err = sqltypes.NullsafeCompare(l, r)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	switch node.Operator {
