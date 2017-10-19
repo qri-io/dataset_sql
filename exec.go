@@ -172,7 +172,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 			return result, nil, err
 		}
 
-		if srf.Filter() {
+		if srf.Match() {
 			row, err := rg.GenerateRow()
 			if err == ErrAggStmt {
 				continue

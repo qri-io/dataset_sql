@@ -171,9 +171,9 @@ func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
 	return
 }
 
-// Filter returns weather the row should be allowed to pass through
+// Match returns weather the row should be allowed to pass through
 // to the table
-func (srf *SourceRowFilter) Filter() bool {
+func (srf *SourceRowFilter) Match() bool {
 	_, pass, err := srf.test.Eval()
 	if err != nil {
 		// fmt.Println(err.Error())

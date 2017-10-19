@@ -84,7 +84,7 @@ func TestSourceRowFilter(t *testing.T) {
 			return
 		}
 
-		got := srg.Filter()
+		got := srg.Match()
 		if got != c.expect {
 			t.Errorf("case %d fail %t != %t", i, c.expect, got)
 		}

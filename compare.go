@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/qri-io/dataset_sql/sqltypes"
+	pb "github.com/qri-io/dataset_sql/vt/proto/query"
 	"regexp"
-	// pb "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
 var (
@@ -35,10 +35,14 @@ func (node *ComparisonExpr) Compare() (bool, error) {
 	// if err != nil {
 	// 	return false, err
 	// }
-
-	result, err := sqltypes.NullsafeCompare(l, r)
-	if err != nil {
-		return false, err
+	var result int
+	if lt == pb.Type_TEXT && rt == pb.Type_TEXT {
+		result = bytes.Compare(left, right)
+	} else {
+		result, err = sqltypes.NullsafeCompare(l, r)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	switch node.Operator {
