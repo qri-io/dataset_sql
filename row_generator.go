@@ -9,25 +9,33 @@ import (
 // calling eval on a set of select expressions from a given
 // SourceRow
 type RowGenerator struct {
-	ast Statement
-	st  *dataset.Structure
+	exprs SelectExprs
+	st    *dataset.Structure
 }
 
-func NewRowGenerator(ast Statement, st *dataset.Structure) *RowGenerator {
+func NewRowGenerator(ast Statement, resources map[string]*dataset.Structure, result *dataset.Structure) (rg *RowGenerator, err error) {
 	// funcs, err := AggregateFuncs(ast)
 	// if err != nil {
 	// 	return nil, err
 	// }
+	rg = &RowGenerator{}
 
-	return &RowGenerator{
-		ast: ast,
-		st:  st,
-	}
+	rg.exprs, err = generateResultSchema(ast, resources, result)
+	rg.st = result
+	return
 }
 
 // GenerateRow generates a row
-func (rg *RowGenerator) GenerateRow(sr SourceRow) ([][]byte, error) {
-	return nil, nil
+func (rg *RowGenerator) GenerateRow() ([][]byte, error) {
+	row := make([][]byte, len(rg.exprs))
+	for i, expr := range rg.exprs {
+		_, data, err := expr.Eval()
+		if err != nil {
+			return nil, err
+		}
+		row[i] = data
+	}
+	return row, nil
 }
 
 func (rg *RowGenerator) GenerateAggregateRow() ([][]byte, error) {
@@ -75,25 +83,31 @@ func (rg *RowGenerator) Structure() *dataset.Structure {
 // }
 
 // generateResultSchema determines the schema of the query & adds it to result
-// func generateResultSchema(stmt *Select, from map[string]*StructureData, result *dataset.Structure) {
-// 	if result.Schema == nil {
-// 		result.Schema = &dataset.Schema{}
-// 	}
+func generateResultSchema(ast Statement, from map[string]*dataset.Structure, result *dataset.Structure) (SelectExprs, error) {
+	if result.Schema == nil {
+		result.Schema = &dataset.Schema{}
+	}
 
-// 	for _, node := range stmt.SelectExprs {
-// 		if star, ok := node.(*StarExpr); ok && node != nil {
-// 			name := star.TableName.String()
-// 			for tableName, resourceData := range from {
-// 				// we add fields if the names match, or if no name is specified
-// 				if tableName == name || name == "" {
-// 					result.Schema.Fields = append(result.Schema.Fields, resourceData.Structure.Schema.Fields...)
-// 				}
-// 			}
-// 		} else if expr, ok := node.(*AliasedExpr); ok && node != nil {
-// 			result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
-// 				Name: expr.ResultName(),
-// 				Type: expr.FieldType(from),
-// 			})
-// 		}
-// 	}
-// }
+	switch stmt := ast.(type) {
+	case *Select:
+		for _, node := range stmt.SelectExprs {
+			if star, ok := node.(*StarExpr); ok && node != nil {
+				name := star.TableName.String()
+				for tableName, resourceData := range from {
+					// we add fields if the names match, or if no name is specified
+					if tableName == name || name == "" {
+						result.Schema.Fields = append(result.Schema.Fields, resourceData.Schema.Fields...)
+					}
+				}
+			} else if expr, ok := node.(*AliasedExpr); ok && node != nil {
+				result.Schema.Fields = append(result.Schema.Fields, &dataset.Field{
+					Name: expr.ResultName(),
+					Type: expr.FieldType(from),
+				})
+			}
+		}
+		return stmt.SelectExprs, nil
+	}
+
+	return nil, NotYetImplemented("result schemas for statements other than select")
+}

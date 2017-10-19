@@ -36,6 +36,7 @@ func TestSourceRowGenerator(t *testing.T) {
 }
 
 func TestSourceRowFilter(t *testing.T) {
+	// TODO - need to test limit / offset clauses
 	stmt, err := Parse("select * from t1 where t1.a > 5")
 	if err != nil {
 		t.Errorf("statement parse error: %s", err.Error())
@@ -48,6 +49,23 @@ func TestSourceRowFilter(t *testing.T) {
 		return
 	}
 
+	resources := map[string]*dataset.Structure{
+		"t1": &dataset.Structure{
+			Format: dataset.CsvDataFormat,
+			Schema: &dataset.Schema{
+				Fields: []*dataset.Field{
+					&dataset.Field{Name: "a", Type: datatypes.Integer},
+				},
+			},
+		},
+	}
+
+	if err := PopulateTableInfo(stmt, resources); err != nil {
+		t.Errorf("error populating table info: %s", err.Error())
+		return
+	}
+	cols := CollectColNames(stmt)
+
 	cases := []struct {
 		sr     SourceRow
 		expect bool
@@ -59,25 +77,6 @@ func TestSourceRowFilter(t *testing.T) {
 		{SourceRow{"t1": [][]byte{[]byte("200")}}, true},
 		{SourceRow{"t1": [][]byte{[]byte("7")}}, true},
 	}
-
-	st := &dataset.Structure{
-		Format: dataset.CsvDataFormat,
-		Schema: &dataset.Schema{
-			Fields: []*dataset.Field{
-				&dataset.Field{Name: "a", Type: datatypes.Integer},
-			},
-		},
-	}
-
-	resources := map[string]*dataset.Structure{
-		"t1": st,
-	}
-
-	if err := PopulateTableInfo(stmt, resources); err != nil {
-		t.Errorf("error populating table info: %s", err.Error())
-		return
-	}
-	cols := CollectColNames(stmt)
 
 	for i, c := range cases {
 		if err := SetSourceRow(cols, c.sr); err != nil {

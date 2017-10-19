@@ -145,8 +145,12 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return result, nil, err
 	}
 
+	rg, err := NewRowGenerator(stmt, resources, result)
+	if err != nil {
+		return result, nil, err
+	}
+
 	cols := CollectColNames(stmt)
-	rg := NewRowGenerator(stmt, result)
 	buf := dsio.NewBuffer(result)
 
 	for srg.Next() && !srf.Done() {
@@ -160,7 +164,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		}
 
 		if srf.Filter() {
-			row, err := rg.GenerateRow(sr)
+			row, err := rg.GenerateRow()
 			if err != nil {
 				return result, nil, err
 			}
