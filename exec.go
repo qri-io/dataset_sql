@@ -154,13 +154,6 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return result, nil, err
 	}
 
-	// text, json, err := PrintAst(stmt)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// ioutil.WriteFile("testdata/one.txt", text, 0777)
-	// ioutil.WriteFile("testdata/one.json", json, 0777)
-
 	buf := dsio.NewBuffer(result)
 	for srg.Next() && !srf.Done() {
 		sr, err := srg.Row()
@@ -171,6 +164,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		if err := SetSourceRow(cols, sr); err != nil {
 			return result, nil, err
 		}
+		// for _, c := range cols {
+		// 	fmt.Printf("%s,", string(c.Value))
+		// }
+		// fmt.Printf("\n")
 
 		if srf.Match() {
 			row, err := rg.GenerateRow()

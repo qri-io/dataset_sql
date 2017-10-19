@@ -42,7 +42,8 @@ func TestSelectFields(t *testing.T) {
 		{"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
-		{"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		{"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1},
 		{"select sum(5) from t1", nil, []*dataset.Field{
 			&dataset.Field{Name: "sum", Type: datatypes.Float},
 		}, 1},
@@ -266,10 +267,21 @@ func makeTestData() (store cafs.Filestore, datasets map[string]*dataset.Dataset,
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	t1Data := generate.RandomData(t1Struct, func(o *generate.RandomDataOpts) {
-		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
-		o.NumRandRecords = 9
-	})
+	// t1Data := generate.RandomData(t1Struct, func(o *generate.RandomDataOpts) {
+	// 	o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
+	// 	o.NumRandRecords = 9
+	// })
+	t1Data := []byte(`Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes
+Sun Dec 25 09:25:46 2016,title_2,68882,0.6893978118896484,note 2
+Sun Dec 25 09:25:46 2016,title_3,68882,0.6893978118896484,note 3
+Sun Dec 25 09:25:46 2016,title_4,68882,0.6893978118896484,note 4
+Sun Dec 25 09:25:46 2016,title_5,68882,0.6893978118896484,note 5
+Sun Dec 25 09:25:46 2016,title_6,68882,0.6893978118896484,note 6
+Sun Dec 25 09:25:46 2016,title_7,68882,0.6893978118896484,note 7
+Sun Dec 25 09:25:46 2016,title_8,68882,0.6893978118896484,note 8
+Sun Dec 25 09:25:46 2016,title_9,68882,0.6893978118896484,note 9
+Sun Dec 25 09:25:46 2016,title_10,68882,0.6893978118896484,note 10
+`)
 
 	t1 := &dataset.Dataset{
 		Data:      datastore.NewKey("t1Data"),
@@ -281,10 +293,21 @@ func makeTestData() (store cafs.Filestore, datasets map[string]*dataset.Dataset,
 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
 	})
 
-	t2Data := generate.RandomData(t2Struct, func(o *generate.RandomDataOpts) {
-		o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
-		o.NumRandRecords = 9
-	})
+	// t2Data := generate.RandomData(t2Struct, func(o *generate.RandomDataOpts) {
+	// 	o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes\n")
+	// 	o.NumRandRecords = 9
+	// })
+	t2Data := []byte(`Sun Dec 25 09:25:46 2016,test_title_two,68882,0.6893978118896484,no notes
+Sun Dec 25 09:25:46 2016,title_t_2,68882,0.6893978118896484,note t2
+Sun Dec 25 09:25:46 2016,title_t_3,68882,0.6893978118896484,note t3
+Sun Dec 25 09:25:46 2016,title_t_4,68882,0.6893978118896484,note t4
+Sun Dec 25 09:25:46 2016,title_t_5,68882,0.6893978118896484,note t5
+Sun Dec 25 09:25:46 2016,title_t_6,68882,0.6893978118896484,note t6
+Sun Dec 25 09:25:46 2016,title_t_7,68882,0.6893978118896484,note t7
+Sun Dec 25 09:25:46 2016,title_t_8,68882,0.6893978118896484,note t8
+Sun Dec 25 09:25:46 2016,title_t_9,68882,0.6893978118896484,note t9
+Sun Dec 25 09:25:46 2016,title_t_10,68882,0.6893978118896484,note t10
+`)
 
 	t2 := &dataset.Dataset{
 		Data:      datastore.NewKey("t2"),

@@ -163,7 +163,9 @@ func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
 				}
 			}
 		case OrderBy:
-			sr.calcAll = true
+			if n != nil {
+				sr.calcAll = true
+			}
 		}
 		return true, nil
 	})
@@ -182,7 +184,7 @@ func (srf *SourceRowFilter) Match() bool {
 
 	if bytes.Equal(pass, trueB) {
 		srf.passed++
-		if srf.passed < srf.offset {
+		if srf.passed <= srf.offset {
 			return false
 		}
 		return true
@@ -194,6 +196,7 @@ func (srf *SourceRowFilter) Match() bool {
 func (srf *SourceRowFilter) Done() bool {
 	// TODO - lots of things will complicate this clause, such
 	// as needing to calculate all results to sort, etc.
+	// fmt.Println(srf.calcAll, (srf.passed-srf.offset) >= srf.limit, srf.passed, srf.limit)
 	return !srf.calcAll && srf.limit > 0 && (srf.passed-srf.offset) >= srf.limit
 }
 
