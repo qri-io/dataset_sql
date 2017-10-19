@@ -5,6 +5,7 @@ import (
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/dsio"
+	// "io/ioutil"
 )
 
 type ExecOpt struct {
@@ -127,15 +128,17 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 
 	result = ds.Query.Structure
 	resources := map[string]*dataset.Structure{}
-	for abst, _ := range remap {
+	ads := map[string]*dataset.Dataset{}
+	for abst, con := range remap {
 		resources[abst] = ds.Query.Structures[abst]
+		ads[abst] = ds.Resources[con]
 	}
 
 	if err := PopulateTableInfo(stmt, resources); err != nil {
 		return result, nil, err
 	}
 
-	srg, err := NewSourceRowGenerator(store, ds.Resources)
+	srg, err := NewSourceRowGenerator(store, ads)
 	if err != nil {
 		return result, nil, err
 	}
@@ -151,8 +154,14 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return result, nil, err
 	}
 
-	buf := dsio.NewBuffer(result)
+	// text, json, err := PrintAst(stmt)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// ioutil.WriteFile("testdata/one.txt", text, 0777)
+	// ioutil.WriteFile("testdata/one.json", json, 0777)
 
+	buf := dsio.NewBuffer(result)
 	for srg.Next() && !srf.Done() {
 		sr, err := srg.Row()
 		if err != nil {

@@ -34,15 +34,15 @@ func TestSelectFields(t *testing.T) {
 	notes := resources["t1"].Structure.Schema.Fields[4]
 
 	cases := []execTestCase{
-		// {"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
+		{"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created from t1 limit 5", nil, []*dataset.Field{created}, 5},
-		// {"select t1.created from t1 limit 1 offset 1", nil, []*dataset.Field{created}, 1},
-		// {"select * from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		// {"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
-		// {"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
-		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
+		{"select t1.created from t1 limit 1 offset 1", nil, []*dataset.Field{created}, 1},
+		{"select * from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
+		{"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
 		{"select sum(5) from t1", nil, []*dataset.Field{
 			&dataset.Field{Name: "sum", Type: datatypes.Float},
 		}, 1},

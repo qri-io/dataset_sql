@@ -2,7 +2,6 @@ package dataset_sql
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 
 	"github.com/ipfs/go-datastore"
@@ -177,7 +176,7 @@ func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
 func (srf *SourceRowFilter) Filter() bool {
 	_, pass, err := srf.test.Eval()
 	if err != nil {
-		fmt.Println(err.Error())
+		// fmt.Println(err.Error())
 		return false
 	}
 
