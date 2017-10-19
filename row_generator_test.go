@@ -23,7 +23,8 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
-	rg, err := NewRowGenerator(stmt, resources, &dataset.Structure{})
+	cols := CollectColNames(stmt)
+	rg, err := NewRowGenerator(stmt, resources, &dataset.Structure{}, &cols)
 	if err != nil {
 		t.Errorf("error creating row generator: %s", err.Error())
 		return
@@ -33,7 +34,6 @@ func TestRowGenerator(t *testing.T) {
 		t.Errorf("error populating table info: %s", err.Error())
 		return
 	}
-	cols := CollectColNames(stmt)
 
 	sr := SourceRow{
 		"t1": [][]byte{[]byte("Sun Dec 25 09:25:46 2016"), []byte("test_title"), []byte("68882"), []byte("0.6893978118896484"), []byte("no notes")},
