@@ -1,7 +1,6 @@
 package dataset_sql
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -22,17 +21,18 @@ func TestSourceRowGenerator(t *testing.T) {
 	for srg.Next() {
 		count++
 		// TODO - check that rows are iterating the right values
-		row, err := srg.Row()
+		_, err := srg.Row()
 		if err != nil {
 			t.Errorf("row %d unexpected error: %s", count, err.Error())
 			return
 		}
 
-		fmt.Println(len(row["t1"]), len(row["t2"]))
+		// i := srg.Indexes()
+		// fmt.Println(i["t1"], i["t2"])
 	}
 
-	if count != 20 {
-		t.Errorf("wrong number of iterations. expected %d, got %d", 20, count)
+	if count != 100 {
+		t.Errorf("wrong number of iterations. expected %d, got %d", 100, count)
 	}
 }
 

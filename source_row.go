@@ -2,7 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
-	"fmt"
+	"io"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
@@ -43,10 +43,6 @@ func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.D
 }
 
 func (srg *SourceRowGenerator) Next() bool {
-	if srg.readers[0].done {
-		return false
-	}
-
 	// need init to skip initial call to Next.
 	if srg.init {
 		srg.init = false
@@ -54,6 +50,9 @@ func (srg *SourceRowGenerator) Next() bool {
 	}
 
 	if err := srg.incrRow(); err != nil {
+		if err == io.EOF {
+			return false
+		}
 		srg.err = err
 	}
 	return true
@@ -62,14 +61,19 @@ func (srg *SourceRowGenerator) Next() bool {
 func (srg *SourceRowGenerator) incrRow() error {
 	for i := len(srg.readers) - 1; i >= 0; i-- {
 		rdr := srg.readers[i]
+		if err := rdr.Next(); err != nil {
+			return err
+		}
+
 		if rdr.done {
+			if i == 0 {
+				return io.EOF
+			}
 			if err := rdr.Reset(srg.store); err != nil {
 				return err
 			}
 		} else {
-			if err := rdr.Next(); err != nil {
-				return err
-			}
+			return nil
 		}
 	}
 	return nil
@@ -84,6 +88,14 @@ func (srg *SourceRowGenerator) Row() (SourceRow, error) {
 		sr[rdr.name] = rdr.row
 	}
 	return sr, nil
+}
+
+func (srg *SourceRowGenerator) Indexes() map[string]int {
+	indexes := map[string]int{}
+	for _, rdr := range srg.readers {
+		indexes[rdr.name] = rdr.i
+	}
+	return indexes
 }
 
 // rowReader wraps a dsio.reader with additional required state
@@ -104,15 +116,14 @@ func (rr *rowReader) Next() (err error) {
 		return nil
 	}
 
-	rr.i++
 	rr.row, err = rr.reader.ReadRow()
 	if err != nil {
 		if err.Error() == "EOF" {
-			fmt.Println("done", rr.name)
 			rr.done = true
 			return nil
 		}
 	}
+	rr.i++
 	return
 }
 
@@ -124,6 +135,7 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 		return err
 	}
 	rr.i = 0
+	rr.done = false
 	rr.reader = dsio.NewReader(rr.st, f)
 	return rr.Next()
 }
