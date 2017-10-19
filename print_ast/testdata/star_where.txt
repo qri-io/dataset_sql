@@ -1,0 +1,26 @@
+*dataset_sql.Select
+  dataset_sql.Comments
+  dataset_sql.SelectExprs
+    *dataset_sql.StarExpr
+      dataset_sql.TableName
+        dataset_sql.TableIdent
+        dataset_sql.TableIdent
+  dataset_sql.TableExprs
+    *dataset_sql.AliasedTableExpr
+      dataset_sql.TableName
+        dataset_sql.TableIdent
+        dataset_sql.TableIdent
+      dataset_sql.TableIdent
+      *dataset_sql.IndexHints
+  *dataset_sql.Where
+    *dataset_sql.ComparisonExpr
+      *dataset_sql.ColName
+        dataset_sql.ColIdent
+        dataset_sql.TableName
+          dataset_sql.TableIdent
+          dataset_sql.TableIdent
+      *dataset_sql.SQLVal
+  dataset_sql.GroupBy
+  *dataset_sql.Where
+  dataset_sql.OrderBy
+  *dataset_sql.Limit

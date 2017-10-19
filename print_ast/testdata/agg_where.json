@@ -14,9 +14,13 @@
           "Exprs": [
             {
               "Expr": {
-                "Metadata": null,
-                "Field": null,
-                "RowIndex": 0,
+                "Metadata": {
+                  "TableName": "",
+                  "ColIndex": 0,
+                  "Field": null,
+                  "QueryType": 0
+                },
+                "Value": null,
                 "Name": "col_one",
                 "Qualifier": {
                   "Name": "",
@@ -45,9 +49,13 @@
       "Expr": {
         "Operator": "\u003e",
         "Left": {
-          "Metadata": null,
-          "Field": null,
-          "RowIndex": 0,
+          "Metadata": {
+            "TableName": "",
+            "ColIndex": 0,
+            "Field": null,
+            "QueryType": 0
+          },
+          "Value": null,
           "Name": "col_one",
           "Qualifier": {
             "Name": "",
@@ -84,9 +92,13 @@
             "Exprs": [
               {
                 "Expr": {
-                  "Metadata": null,
-                  "Field": null,
-                  "RowIndex": 0,
+                  "Metadata": {
+                    "TableName": "",
+                    "ColIndex": 0,
+                    "Field": null,
+                    "QueryType": 0
+                  },
+                  "Value": null,
                   "Name": "col_one",
                   "Qualifier": {
                     "Name": "",
@@ -111,9 +123,13 @@
               "Exprs": [
                 {
                   "Expr": {
-                    "Metadata": null,
-                    "Field": null,
-                    "RowIndex": 0,
+                    "Metadata": {
+                      "TableName": "",
+                      "ColIndex": 0,
+                      "Field": null,
+                      "QueryType": 0
+                    },
+                    "Value": null,
                     "Name": "col_one",
                     "Qualifier": {
                       "Name": "",
@@ -136,9 +152,13 @@
                 "Exprs": [
                   {
                     "Expr": {
-                      "Metadata": null,
-                      "Field": null,
-                      "RowIndex": 0,
+                      "Metadata": {
+                        "TableName": "",
+                        "ColIndex": 0,
+                        "Field": null,
+                        "QueryType": 0
+                      },
+                      "Value": null,
                       "Name": "col_one",
                       "Qualifier": {
                         "Name": "",
@@ -165,9 +185,13 @@
                   "SQLNode": [
                     {
                       "Expr": {
-                        "Metadata": null,
-                        "Field": null,
-                        "RowIndex": 0,
+                        "Metadata": {
+                          "TableName": "",
+                          "ColIndex": 0,
+                          "Field": null,
+                          "QueryType": 0
+                        },
+                        "Value": null,
                         "Name": "col_one",
                         "Qualifier": {
                           "Name": "",
@@ -182,9 +206,13 @@
                       "type": "*dataset_sql.AliasedExpr",
                       "SQLNode": {
                         "Expr": {
-                          "Metadata": null,
-                          "Field": null,
-                          "RowIndex": 0,
+                          "Metadata": {
+                            "TableName": "",
+                            "ColIndex": 0,
+                            "Field": null,
+                            "QueryType": 0
+                          },
+                          "Value": null,
                           "Name": "col_one",
                           "Qualifier": {
                             "Name": "",
@@ -197,9 +225,13 @@
                         {
                           "type": "*dataset_sql.ColName",
                           "SQLNode": {
-                            "Metadata": null,
-                            "Field": null,
-                            "RowIndex": 0,
+                            "Metadata": {
+                              "TableName": "",
+                              "ColIndex": 0,
+                              "Field": null,
+                              "QueryType": 0
+                            },
+                            "Value": null,
                             "Name": "col_one",
                             "Qualifier": {
                               "Name": "",
@@ -317,9 +349,13 @@
         "Expr": {
           "Operator": "\u003e",
           "Left": {
-            "Metadata": null,
-            "Field": null,
-            "RowIndex": 0,
+            "Metadata": {
+              "TableName": "",
+              "ColIndex": 0,
+              "Field": null,
+              "QueryType": 0
+            },
+            "Value": null,
             "Name": "col_one",
             "Qualifier": {
               "Name": "",
@@ -339,9 +375,13 @@
           "SQLNode": {
             "Operator": "\u003e",
             "Left": {
-              "Metadata": null,
-              "Field": null,
-              "RowIndex": 0,
+              "Metadata": {
+                "TableName": "",
+                "ColIndex": 0,
+                "Field": null,
+                "QueryType": 0
+              },
+              "Value": null,
               "Name": "col_one",
               "Qualifier": {
                 "Name": "",
@@ -358,9 +398,13 @@
             {
               "type": "*dataset_sql.ColName",
               "SQLNode": {
-                "Metadata": null,
-                "Field": null,
-                "RowIndex": 0,
+                "Metadata": {
+                  "TableName": "",
+                  "ColIndex": 0,
+                  "Field": null,
+                  "QueryType": 0
+                },
+                "Value": null,
                 "Name": "col_one",
                 "Qualifier": {
                   "Name": "",

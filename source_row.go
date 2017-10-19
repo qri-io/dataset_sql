@@ -143,21 +143,27 @@ type SourceRowFilter struct {
 	offset  int64
 	test    *Where
 	calcAll bool
-	// agg     bool
 }
 
 func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
 	sr = &SourceRowFilter{}
 	err = ast.WalkSubtree(func(node SQLNode) (bool, error) {
+		if node == nil {
+			return true, nil
+		}
 		switch n := node.(type) {
 		case *Where:
-			sr.test = n
-		case *Limit:
-			sr.limit, sr.offset, err = n.Counts()
-			if err != nil {
-				return false, err
+			if n != nil {
+				sr.test = n
 			}
-		case *OrderBy:
+		case *Limit:
+			if n != nil {
+				sr.limit, sr.offset, err = n.Counts()
+				if err != nil {
+					return false, err
+				}
+			}
+		case OrderBy:
 			sr.calcAll = true
 		}
 		return true, nil
@@ -189,7 +195,7 @@ func (srf *SourceRowFilter) Filter() bool {
 func (srf *SourceRowFilter) Done() bool {
 	// TODO - lots of things will complicate this clause, such
 	// as needing to calculate all results to sort, etc.
-	return !srf.calcAll && srf.limit > 0 && (srf.passed-srf.offset) == srf.limit
+	return !srf.calcAll && srf.limit > 0 && (srf.passed-srf.offset) >= srf.limit
 }
 
 // rowsEqual checks to see if two rows are identitical

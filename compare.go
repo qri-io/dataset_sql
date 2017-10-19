@@ -15,23 +15,26 @@ var (
 )
 
 func (node *ComparisonExpr) Compare() (bool, error) {
-	_, left, err := node.Left.Eval()
+	lt, left, err := node.Left.Eval()
 	if err != nil {
 		return false, err
 	}
-	_, right, err := node.Right.Eval()
+	rt, right, err := node.Right.Eval()
 	if err != nil {
 		return false, err
 	}
 
-	l, err := sqltypes.BuildValue(left)
-	if err != nil {
-		return false, err
-	}
-	r, err := sqltypes.BuildValue(right)
-	if err != nil {
-		return false, err
-	}
+	l := sqltypes.MakeTrusted(lt, left)
+	r := sqltypes.MakeTrusted(rt, right)
+
+	// l, err := sqltypes.BuildValue(left)
+	// if err != nil {
+	// 	return false, err
+	// }
+	// r, err := sqltypes.BuildValue(right)
+	// if err != nil {
+	// 	return false, err
+	// }
 
 	result, err := sqltypes.NullsafeCompare(l, r)
 	if err != nil {

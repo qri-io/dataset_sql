@@ -55,6 +55,9 @@ func TestSourceRowFilter(t *testing.T) {
 		{SourceRow{"t1": [][]byte{[]byte("0")}}, false},
 		{SourceRow{"t1": [][]byte{[]byte("5")}}, false},
 		{SourceRow{"t1": [][]byte{[]byte("6")}}, true},
+		{SourceRow{"t1": [][]byte{[]byte("10")}}, true},
+		{SourceRow{"t1": [][]byte{[]byte("200")}}, true},
+		{SourceRow{"t1": [][]byte{[]byte("7")}}, true},
 	}
 
 	st := &dataset.Structure{

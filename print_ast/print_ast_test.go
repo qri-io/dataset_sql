@@ -12,7 +12,8 @@ func TestPrintAst(t *testing.T) {
 		err            error
 	}{
 		{"simple_agg", "select sum(5) from t1", nil},
-		{"one", "select sum(col_one) from table_2 where col_one > 2000", nil},
+		{"agg_where", "select sum(col_one) from table_2 where col_one > 2000", nil},
+		{"star_where", "select * from t1 where t1.a > 5", nil},
 	}
 
 	for i, c := range cases {
