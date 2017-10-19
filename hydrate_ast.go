@@ -79,6 +79,12 @@ func CollectColNames(tree SQLNode) (cols []*ColName) {
 
 func SetSourceRow(cols []*ColName, sr SourceRow) error {
 	for _, col := range cols {
+		if col.Metadata.TableName == "" {
+			return fmt.Errorf("col missing metadata: %#v", col)
+		}
+		if col.Metadata.ColIndex > len(sr[col.Metadata.TableName])-1 {
+			return fmt.Errorf("index out of range to set column value: %s.%d", col.Metadata.TableName, col.Metadata.ColIndex)
+		}
 		col.Value = sr[col.Metadata.TableName][col.Metadata.ColIndex]
 	}
 	return nil

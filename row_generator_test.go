@@ -1,7 +1,6 @@
 package dataset_sql
 
 import (
-	"fmt"
 	"github.com/qri-io/dataset"
 	"testing"
 )
@@ -50,7 +49,11 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
-	for _, c := range row {
-		fmt.Println(string(c))
+	if len(row) != 5 {
+		t.Errorf("result row length mismatch. expected: %d, got: %d", 5, len(row))
 	}
+
+	// for _, c := range row {
+	// 	fmt.Println(string(c))
+	// }
 }

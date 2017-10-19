@@ -165,7 +165,9 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 
 		if srf.Filter() {
 			row, err := rg.GenerateRow()
-			if err != nil {
+			if err == ErrAggStmt {
+				continue
+			} else if err != nil {
 				return result, nil, err
 			}
 
@@ -175,18 +177,13 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		}
 	}
 
-	// TODO - restore aggregate function writing
-	// if agg {
-	// 	row, err := aggFuncResults(funcs)
-	// 	if err != nil {
-	// 		return result, nil, err
-	// 	}
-	// 	// fmt.Println(row)
-	// 	for _, r := range row {
-	// 		fmt.Printf(string(r))
-	// 	}
-	// 	buf.WriteRow(row)
-	// }
+	if rg.HasAggregates() {
+		row, err := rg.GenerateAggregateRow()
+		if err != nil {
+			return result, nil, err
+		}
+		buf.WriteRow(row)
+	}
 
 	if err := buf.Close(); err != nil {
 		return result, nil, err

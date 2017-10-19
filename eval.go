@@ -184,7 +184,6 @@ func (node *CollateExpr) Eval() (q.Type, []byte, error) {
 
 // TODO - finish
 func (node *FuncExpr) Eval() (q.Type, []byte, error) {
-	fmt.Println("eval func expr", node.Name.String())
 	return node.fn.Eval()
 }
 
