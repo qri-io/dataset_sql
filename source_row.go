@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/ipfs/go-datastore"
@@ -90,14 +91,6 @@ func (srg *SourceRowGenerator) Row() (SourceRow, error) {
 	return sr, nil
 }
 
-func (srg *SourceRowGenerator) Indexes() map[string]int {
-	indexes := map[string]int{}
-	for _, rdr := range srg.readers {
-		indexes[rdr.name] = rdr.i
-	}
-	return indexes
-}
-
 // rowReader wraps a dsio.reader with additional required state
 type rowReader struct {
 	reader dsio.Reader
@@ -145,45 +138,58 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 // for example, things like current status in a LIMIT / OFFSET
 type SourceRowFilter struct {
 	ast     Statement
-	added   int
-	limit   int
-	offset  int
+	passed  int64
+	limit   int64
+	offset  int64
+	test    *Where
 	calcAll bool
-	agg     bool
+	// agg     bool
 }
 
-func NewSourceRowFilter(ast Statement) (*SourceRowFilter, error) {
-	// TODO - generalize limit/offset to Statement searching
-	// limit, offset, err := ast.Limit.Counts()
-	// if err != nil {
-	// 	return nil, err
-	// }
+func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
+	sr = &SourceRowFilter{}
+	err = ast.WalkSubtree(func(node SQLNode) (bool, error) {
+		switch n := node.(type) {
+		case *Where:
+			sr.test = n
+		case *Limit:
+			sr.limit, sr.offset, err = n.Counts()
+			if err != nil {
+				return false, err
+			}
+		case *OrderBy:
+			sr.calcAll = true
+		}
+		return true, nil
+	})
 
-	// TODO - remove this in favour of a "hasAggregate" func
-	funcs, err := AggregateFuncs(ast)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SourceRowFilter{
-		limit:   -1,
-		offset:  0,
-		calcAll: true,
-		agg:     len(funcs) > 0,
-	}, nil
+	return
 }
 
 // Filter returns weather the row should be allowed to pass through
 // to the table
-func (srf *SourceRowFilter) Filter(sr SourceRow) bool {
-	return !srf.agg
+func (srf *SourceRowFilter) Filter() bool {
+	_, pass, err := srf.test.Eval()
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+
+	if bytes.Equal(pass, trueB) {
+		srf.passed++
+		if srf.passed < srf.offset {
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 // Done indicates we don't need to iterate anymore
 func (srf *SourceRowFilter) Done() bool {
 	// TODO - lots of things will complicate this clause, such
 	// as needing to calculate all results to sort, etc.
-	return !srf.calcAll && srf.limit > 0 && srf.added == srf.limit
+	return !srf.calcAll && srf.limit > 0 && (srf.passed-srf.offset) == srf.limit
 }
 
 // rowsEqual checks to see if two rows are identitical

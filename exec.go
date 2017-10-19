@@ -159,8 +159,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 			return result, nil, err
 		}
 
-		if srf.Filter(sr) {
-
+		if srf.Filter() {
 			row, err := rg.GenerateRow(sr)
 			if err != nil {
 				return result, nil, err
@@ -169,7 +168,6 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 			if err := buf.WriteRow(row); err != nil {
 				return result, nil, err
 			}
-
 		}
 	}
 
