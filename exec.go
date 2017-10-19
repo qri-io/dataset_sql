@@ -150,7 +150,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	buf := dsio.NewBuffer(result)
 
 	for srg.Next() && !srf.Done() {
-		sr := srg.Row()
+		sr, err := srg.Row()
+		if err != nil {
+			return result, nil, err
+		}
 
 		if err := SetSourceRow(cols, sr); err != nil {
 			return result, nil, err

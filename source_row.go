@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
@@ -13,22 +14,6 @@ import (
 // identitifed by a string
 type SourceRow map[string][][]byte
 
-// NewSourceRowGenerator initializes a source row generator
-func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.Dataset) (*SourceRowGenerator, error) {
-	srg := &SourceRowGenerator{store: store, init: true}
-	for name, ds := range resources {
-		rdr := &rowReader{
-			name: name,
-			st:   ds.Structure,
-		}
-		if err := rdr.Reset(store); err != nil {
-			return nil, err
-		}
-		srg.readers = append(srg.readers, rdr)
-	}
-	return srg, nil
-}
-
 // SourcRowGenerator consumes dataset data readers
 // generating SourceRows.
 // It's main job is to generate the exhastive
@@ -37,6 +22,24 @@ type SourceRowGenerator struct {
 	store   cafs.Filestore
 	readers []*rowReader
 	init    bool
+	err     error
+}
+
+// NewSourceRowGenerator initializes a source row generator
+func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.Dataset) (*SourceRowGenerator, error) {
+	srg := &SourceRowGenerator{store: store, init: true}
+	for name, ds := range resources {
+		rdr := &rowReader{
+			name: name,
+			st:   ds.Structure,
+			path: ds.Data,
+		}
+		if err := rdr.Reset(store); err != nil {
+			return nil, err
+		}
+		srg.readers = append(srg.readers, rdr)
+	}
+	return srg, nil
 }
 
 func (srg *SourceRowGenerator) Next() bool {
@@ -50,7 +53,9 @@ func (srg *SourceRowGenerator) Next() bool {
 		return true
 	}
 
-	srg.incrRow()
+	if err := srg.incrRow(); err != nil {
+		srg.err = err
+	}
 	return true
 }
 
@@ -58,27 +63,34 @@ func (srg *SourceRowGenerator) incrRow() error {
 	for i := len(srg.readers) - 1; i >= 0; i-- {
 		rdr := srg.readers[i]
 		if rdr.done {
-			return rdr.Reset(srg.store)
+			if err := rdr.Reset(srg.store); err != nil {
+				return err
+			}
 		} else {
-			return rdr.Next()
+			if err := rdr.Next(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (srg *SourceRowGenerator) Row() SourceRow {
+func (srg *SourceRowGenerator) Row() (SourceRow, error) {
+	if srg.err != nil {
+		return nil, srg.err
+	}
 	sr := SourceRow{}
 	for _, rdr := range srg.readers {
 		sr[rdr.name] = rdr.row
 	}
-	return sr
+	return sr, nil
 }
 
 // rowReader wraps a dsio.reader with additional required state
 type rowReader struct {
 	reader dsio.Reader
 	name   string
-	key    datastore.Key
+	path   datastore.Key
 	st     *dataset.Structure
 	i      int
 	done   bool
@@ -88,10 +100,18 @@ type rowReader struct {
 // next increments the reader, pulling it's row data into
 // internal state
 func (rr *rowReader) Next() (err error) {
+	if rr.done {
+		return nil
+	}
+
 	rr.i++
 	rr.row, err = rr.reader.ReadRow()
 	if err != nil {
-		rr.done = true
+		if err.Error() == "EOF" {
+			fmt.Println("done", rr.name)
+			rr.done = true
+			return nil
+		}
 	}
 	return
 }
@@ -99,33 +119,13 @@ func (rr *rowReader) Next() (err error) {
 // reset re-initializes the reader, starting the read process
 // from scratch
 func (rr *rowReader) Reset(store cafs.Filestore) error {
-	f, err := store.Get(rr.key)
+	f, err := store.Get(rr.path)
 	if err != nil {
 		return err
 	}
 	rr.i = 0
-	dsio.NewReader(rr.st, f)
-	return nil
-}
-
-func NewSourceRowFilter(ast Statement) (*SourceRowFilter, error) {
-	// TODO - generalize limit/offset to Statement searching
-	// limit, offset, err := ast.Limit.Counts()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	funcs, err := AggregateFuncs(ast)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SourceRowFilter{
-		limit:   -1,
-		offset:  0,
-		calcAll: true,
-		agg:     len(funcs) > 0,
-	}, nil
+	rr.reader = dsio.NewReader(rr.st, f)
+	return rr.Next()
 }
 
 // SourceRowFilter uses type-populated AST to evaluate candidate SourceRows
@@ -138,6 +138,27 @@ type SourceRowFilter struct {
 	offset  int
 	calcAll bool
 	agg     bool
+}
+
+func NewSourceRowFilter(ast Statement) (*SourceRowFilter, error) {
+	// TODO - generalize limit/offset to Statement searching
+	// limit, offset, err := ast.Limit.Counts()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// TODO - remove this in favour of a "hasAggregate" func
+	funcs, err := AggregateFuncs(ast)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SourceRowFilter{
+		limit:   -1,
+		offset:  0,
+		calcAll: true,
+		agg:     len(funcs) > 0,
+	}, nil
 }
 
 // Filter returns weather the row should be allowed to pass through

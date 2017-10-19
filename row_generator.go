@@ -1,6 +1,7 @@
 package dataset_sql
 
 import (
+	"fmt"
 	"github.com/qri-io/dataset"
 )
 
@@ -13,6 +14,11 @@ type RowGenerator struct {
 }
 
 func NewRowGenerator(ast Statement, st *dataset.Structure) *RowGenerator {
+	// funcs, err := AggregateFuncs(ast)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	return &RowGenerator{
 		ast: ast,
 		st:  st,
@@ -22,6 +28,10 @@ func NewRowGenerator(ast Statement, st *dataset.Structure) *RowGenerator {
 // GenerateRow generates a row
 func (rg *RowGenerator) GenerateRow(sr SourceRow) ([][]byte, error) {
 	return nil, nil
+}
+
+func (rg *RowGenerator) GenerateAggregateRow() ([][]byte, error) {
+	return nil, fmt.Errorf("aggregate row not finished")
 }
 
 func (rg *RowGenerator) Structure() *dataset.Structure {
