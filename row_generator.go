@@ -55,14 +55,11 @@ func (rg *RowGenerator) HasAggregates() bool {
 
 func (rg *RowGenerator) GenerateAggregateRow() ([][]byte, error) {
 	if rg.HasAggregates() {
-
-		row := make([][]byte, len(rg.exprs))
-		for i, expr := range rg.exprs {
-			_, data, err := expr.Eval()
-			if err != nil {
-				return nil, err
-			}
-			row[i] = data
+		// TODO - this is currently relying on order of returned results
+		// matching the resulting schema, which is a horrible idea.
+		row := make([][]byte, len(rg.aggs))
+		for i, agg := range rg.aggs {
+			row[i] = agg.Value()
 		}
 		return row, nil
 	}

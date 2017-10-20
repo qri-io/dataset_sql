@@ -34,11 +34,6 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
-	if err := PopulateTableInfo(stmt, resources); err != nil {
-		t.Errorf("error populating table info: %s", err.Error())
-		return
-	}
-
 	sr := SourceRow{
 		"t1": [][]byte{[]byte("Sun Dec 25 09:25:46 2016"), []byte("test_title"), []byte("68882"), []byte("0.6893978118896484"), []byte("no notes")},
 	}

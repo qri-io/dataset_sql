@@ -20,7 +20,7 @@ func TestPrepareStatement(t *testing.T) {
 			Schema: &dataset.Schema{
 				Fields: []*dataset.Field{
 					&dataset.Field{Name: "a", Type: datatypes.Integer},
-					&dataset.Field{Name: "b", Type: datatypes.Any},
+					&dataset.Field{Name: "b", Type: datatypes.Float},
 				},
 			},
 		},

@@ -60,8 +60,8 @@ func TestSourceRowFilter(t *testing.T) {
 		},
 	}
 
-	if err := PopulateTableInfo(stmt, resources); err != nil {
-		t.Errorf("error populating table info: %s", err.Error())
+	if err := PrepareStatement(stmt, resources); err != nil {
+		t.Errorf("error preparing statement: %s", err.Error())
 		return
 	}
 	cols := CollectColNames(stmt)
