@@ -43,7 +43,7 @@ func TestSourceRowFilter(t *testing.T) {
 		return
 	}
 
-	srg, err := NewSourceRowFilter(stmt)
+	srg, err := NewSourceRowFilter(stmt, nil)
 	if err != nil {
 		t.Errorf("errog creating source row filter: %s", err.Error())
 		return

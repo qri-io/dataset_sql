@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/dataset/dsio"
 )
 
 type ExecOpt struct {
@@ -121,10 +120,6 @@ func Exec(store cafs.Filestore, ds *dataset.Dataset, options ...func(o *ExecOpt)
 }
 
 func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]string, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
-	if stmt.OrderBy != nil {
-		return nil, nil, NotYetImplemented("ORDER BY statements")
-	}
-
 	result = ds.Query.Structure
 	resources := map[string]*dataset.Structure{}
 	ads := map[string]*dataset.Dataset{}
@@ -136,12 +131,15 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	if err := PrepareStatement(stmt, resources); err != nil {
 		return result, nil, err
 	}
+	cols := CollectColNames(stmt)
+	buf := NewResultBuffer(stmt, ds.Query.Structure.Abstract())
 
 	srg, err := NewSourceRowGenerator(store, ads)
 	if err != nil {
 		return result, nil, err
 	}
-	srf, err := NewSourceRowFilter(stmt)
+
+	srf, err := NewSourceRowFilter(stmt, buf)
 	if err != nil {
 		return result, nil, err
 	}
@@ -150,8 +148,6 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		return result, nil, err
 	}
 
-	cols := CollectColNames(stmt)
-	buf := dsio.NewBuffer(result)
 	for srg.Next() && !srf.Done() {
 		sr, err := srg.Row()
 		if err != nil {
@@ -170,9 +166,12 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 				return result, nil, err
 			}
 
-			if err := buf.WriteRow(row); err != nil {
-				return result, nil, err
+			if srf.ShouldWriteRow(row) {
+				if err := buf.WriteRow(row); err != nil {
+					return result, nil, err
+				}
 			}
+
 		}
 	}
 
