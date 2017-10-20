@@ -134,7 +134,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		ads[abst] = ds.Resources[con]
 	}
 
-	if err := RemapStatement(stmt, resources); err != nil {
+	if err := PrepareStatement(stmt, resources); err != nil {
 		return result, nil, err
 	}
 

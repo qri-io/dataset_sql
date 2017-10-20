@@ -22,7 +22,7 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
-	if err := RemapStatement(stmt, resources); err != nil {
+	if err := PrepareStatement(stmt, resources); err != nil {
 		t.Errorf("error remapping statement: %s", err.Error())
 		return
 	}

@@ -8,7 +8,7 @@ import (
 // remapStatement removes star expressions, replacing them with concrete colIdent
 // pointers extracted from resources. It's important that no extraneous tables
 // are in the resources map
-func RemapStatement(stmt Statement, resources map[string]*dataset.Structure) error {
+func PrepareStatement(stmt Statement, resources map[string]*dataset.Structure) error {
 	var visit func(node SQLNode) func(node SQLNode) (bool, error)
 	visit = func(parent SQLNode) func(node SQLNode) (bool, error) {
 		return func(child SQLNode) (bool, error) {

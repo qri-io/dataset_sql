@@ -7,7 +7,7 @@ import (
 	"github.com/qri-io/dataset/datatypes"
 )
 
-func TestRemapStatement(t *testing.T) {
+func TestPrepareStatement(t *testing.T) {
 	stmt, err := Parse("select * from t1")
 	if err != nil {
 		t.Errorf("error parsing statement: %s", err.Error())
@@ -26,7 +26,7 @@ func TestRemapStatement(t *testing.T) {
 		},
 	}
 
-	if err := RemapStatement(stmt, resources); err != nil {
+	if err := PrepareStatement(stmt, resources); err != nil {
 		t.Errorf("error remapping statement: %s", err.Error())
 		return
 	}
