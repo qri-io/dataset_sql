@@ -27,13 +27,13 @@ type SourceRowGenerator struct {
 }
 
 // NewSourceRowGenerator initializes a source row generator
-func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.Dataset) (*SourceRowGenerator, error) {
+func NewSourceRowGenerator(store cafs.Filestore, datapaths map[string]datastore.Key, resources map[string]*dataset.Structure) (*SourceRowGenerator, error) {
 	srg := &SourceRowGenerator{store: store, init: true}
-	for name, ds := range resources {
+	for name, st := range resources {
 		rdr := &rowReader{
 			name: name,
-			st:   ds.Structure,
-			path: ds.Data,
+			st:   st,
+			path: datapaths[name],
 		}
 		if err := rdr.Reset(store); err != nil {
 			return nil, err
