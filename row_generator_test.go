@@ -22,8 +22,13 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
+	if err := RemapStatement(stmt, resources); err != nil {
+		t.Errorf("error remapping statement: %s", err.Error())
+		return
+	}
 	cols := CollectColNames(stmt)
-	rg, err := NewRowGenerator(stmt, resources, &dataset.Structure{}, &cols)
+
+	rg, err := NewRowGenerator(stmt.(*Select), &dataset.Structure{})
 	if err != nil {
 		t.Errorf("error creating row generator: %s", err.Error())
 		return

@@ -134,6 +134,10 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 		ads[abst] = ds.Resources[con]
 	}
 
+	if err := RemapStatement(stmt, resources); err != nil {
+		return result, nil, err
+	}
+
 	if err := PopulateTableInfo(stmt, resources); err != nil {
 		return result, nil, err
 	}
@@ -149,7 +153,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	}
 
 	cols := CollectColNames(stmt)
-	rg, err := NewRowGenerator(stmt, resources, result, &cols)
+	rg, err := NewRowGenerator(stmt, result)
 	if err != nil {
 		return result, nil, err
 	}
