@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"fmt"
+	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
@@ -26,20 +27,24 @@ func StatementTableNames(sql string) ([]string, error) {
 // This will be *heavily* refined, improved, and moved into a
 // separate package
 // TODO - milestone & break down this core piece of tech
-func Format(sql string) (string, Statement, map[string]string, error) {
+func Format(ds *dataset.Dataset) (string, Statement, map[string]string, error) {
 	remap := map[string]string{}
-	stmt, err := Parse(sql)
+	stmt, err := Parse(ds.QueryString)
 	if err != nil {
 		return "", nil, nil, err
 	}
 
-	sel, ok := stmt.(*Select)
-	if !ok {
-		return "", nil, nil, NotYetImplemented("Statements other than 'SELECT'")
+	// sel, ok := stmt.(*Select)
+	// if !ok {
+	// 	return "", nil, nil, NotYetImplemented("Statements other than 'SELECT'")
+	// }
+
+	ds.Query = &dataset.Query{
+		Structures: map[string]*dataset.Structure{},
 	}
 
 	i := 0
-	sel.From.WalkSubtree(func(node SQLNode) (bool, error) {
+	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
 		if ate, ok := node.(*AliasedTableExpr); ok && ate != nil {
 			switch t := ate.Expr.(type) {
 			case TableName:
@@ -60,6 +65,58 @@ func Format(sql string) (string, Statement, map[string]string, error) {
 		}
 		return true, nil
 	})
+
+	paths := map[string]datastore.Key{}
+	// collect table references
+	for mapped, ref := range remap {
+		// for i, adr := range stmt.References() {
+		if ds.Resources[ref] == nil {
+			return "", nil, nil, fmt.Errorf("couldn't find resource for table name: %s", ref)
+		}
+		paths[mapped] = ds.Resources[ref].Data
+		ds.Query.Structures[mapped] = ds.Resources[ref].Structure.Abstract()
+	}
+
+	// This is a basic-column name rewriter from concrete to abstract
+	err = stmt.WalkSubtree(func(node SQLNode) (bool, error) {
+		// if ae, ok := node.(*AliasedExpr); ok && ae != nil {
+		if cn, ok := node.(*ColName); ok && cn != nil {
+			// TODO - check qualifier to avoid extra loopage
+			// if cn.Qualifier.String() != "" {
+			// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
+			// 		if cn.Name.String() ==
+			// 	}
+			// }
+			for con, r := range ds.Resources {
+				for i, f := range r.Structure.Schema.Fields {
+					if f.Name == cn.Name.String() {
+						for mapped, ref := range remap {
+							if ref == con {
+								// fmt.Println(ref, con, mapped)
+								// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
+								// fmt.Println(String(cn))
+								// fmt.Println(String(&ColName{
+								// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+								// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
+								// }))
+
+								*cn = ColName{
+									Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
+									Qualifier: TableName{Name: NewTableIdent(mapped)},
+								}
+							}
+						}
+						return false, nil
+					}
+				}
+				// }
+			}
+		}
+		return true, nil
+	})
+	if err != nil {
+		return "", nil, nil, err
+	}
 
 	buf := NewTrackedBuffer(nil)
 	stmt.Format(buf)

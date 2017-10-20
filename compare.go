@@ -3,9 +3,11 @@ package dataset_sql
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+
+	"github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset_sql/sqltypes"
 	pb "github.com/qri-io/dataset_sql/vt/proto/query"
-	"regexp"
 )
 
 var (
@@ -13,6 +15,24 @@ var (
 	rePct    = regexp.MustCompile("%")
 	rePctPct = regexp.MustCompile("%%")
 )
+
+func queryDatatypeForDataType(t datatypes.Type) pb.Type {
+	switch t {
+	case datatypes.Integer:
+		return pb.Type_INT64
+	case datatypes.Float:
+		return pb.Type_FLOAT32
+	case datatypes.String:
+		return pb.Type_TEXT
+	case datatypes.Boolean:
+		return QueryBoolType
+	case datatypes.Date:
+		return pb.Type_DATE
+	// TODO - finish.
+	default:
+		return pb.Type_NULL_TYPE
+	}
+}
 
 func (node *ComparisonExpr) Compare() (bool, error) {
 	lt, left, err := node.Left.Eval()

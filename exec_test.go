@@ -38,7 +38,7 @@ func TestSelectFields(t *testing.T) {
 		{"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, 10},
 		{"select created from t1 limit 5", nil, []*dataset.Field{created}, 5},
 		{"select t1.created from t1 limit 1 offset 1", nil, []*dataset.Field{created}, 1},
-		{"select * from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
+		{"select created, t1.title, t1.views, rating, notes from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		{"select * from t2 where title = 'test_title' order by title", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
 		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},

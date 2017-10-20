@@ -1,6 +1,7 @@
 package dataset_sql
 
 import (
+	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 	"testing"
@@ -13,7 +14,14 @@ func TestSourceRowGenerator(t *testing.T) {
 		return
 	}
 
-	srg, err := NewSourceRowGenerator(store, resources)
+	datamap := map[string]datastore.Key{}
+	st := map[string]*dataset.Structure{}
+	for name, r := range resources {
+		datamap[name] = r.Data
+		st[name] = r.Structure
+	}
+
+	srg, err := NewSourceRowGenerator(store, datamap, st)
 	if err != nil {
 		t.Errorf("error creating generator: %s", err.Error())
 		return

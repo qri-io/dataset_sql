@@ -2,18 +2,70 @@ package dataset_sql
 
 import (
 	"fmt"
+	"github.com/ipfs/go-datastore"
 
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/dataset/datatypes"
 	q "github.com/qri-io/dataset_sql/vt/proto/query"
 )
 
+func Prepare(ds *dataset.Dataset, opts *ExecOpt) (Statement, map[string]datastore.Key, error) {
+	concreteStmt, err := Parse(ds.QueryString)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = RemoveUnusedReferences(concreteStmt, ds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	strs := map[string]*dataset.Structure{}
+	for name, ds := range ds.Resources {
+		strs[name] = ds.Structure
+	}
+
+	ds.Structure, err = ResultStructure(concreteStmt, strs, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	queryString, stmt, remap, err := Format(ds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// TODO - turn this on once we have client-side formatting
+	// ds.QueryString = queryString
+
+	paths := map[string]datastore.Key{}
+	// collect table references
+	for mapped, ref := range remap {
+		// for i, adr := range stmt.References() {
+		if ds.Resources[ref] == nil {
+			return nil, nil, fmt.Errorf("couldn't find resource for table name: %s", ref)
+		}
+		paths[mapped] = ds.Resources[ref].Data
+		ds.Query.Structures[mapped] = ds.Resources[ref].Structure.Abstract()
+	}
+
+	ds.Query.Syntax = "sql"
+	ds.Query.Statement = queryString
+	ds.Query.Structure, err = ResultStructure(stmt, ds.Query.Structures, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = PrepareStatement(stmt, ds.Query.Structures)
+	return stmt, paths, err
+}
+
+// PrepareStatement sets up a statement for exectution. It modifies the passed-in statement
+// making optimizations, associating type information from resources, etc.
 func PrepareStatement(stmt Statement, resources map[string]*dataset.Structure) (err error) {
 	err = fitASTResources(stmt, resources)
 	if err != nil {
 		return
 	}
-
 	return populateTableInfo(stmt, resources)
 }
 
@@ -55,7 +107,7 @@ func starExprSelectExprs(star *StarExpr, resources map[string]*dataset.Structure
 			for i, f := range resourceData.Schema.Fields {
 				col := &ColName{
 					Name:      NewColIdent(f.Name),
-					Qualifier: TableName{Qualifier: NewTableIdent(tableName)},
+					Qualifier: TableName{Name: NewTableIdent(tableName)},
 					Metadata: StructureRef{
 						TableName: tableName,
 						Field:     f,
@@ -105,7 +157,7 @@ func populateTableInfo(tree SQLNode, resources map[string]*dataset.Structure) er
 			if col.Qualifier.TableName() != "" && resources[col.Qualifier.TableName()] != nil {
 				for i, f := range resources[col.Qualifier.TableName()].Schema.Fields {
 					if col.Name.String() == f.Name {
-						qt := QueryTypeForDataType(f.Type)
+						qt := queryDatatypeForDataType(f.Type)
 						if qt == q.Type_NULL_TYPE {
 							return false, fmt.Errorf("unsupported datatype for colname evaluation: %s", f.Type.String())
 						}
@@ -124,8 +176,7 @@ func populateTableInfo(tree SQLNode, resources map[string]*dataset.Structure) er
 					for i, f := range st.Schema.Fields {
 						if col.Name.String() == f.Name {
 							col.Qualifier = TableName{Name: NewTableIdent(tableName)}
-
-							qt := QueryTypeForDataType(f.Type)
+							qt := queryDatatypeForDataType(f.Type)
 							if qt == q.Type_NULL_TYPE {
 								return false, fmt.Errorf("unsupported datatype for colname evaluation: %s", f.Type.String())
 							}
@@ -144,44 +195,4 @@ func populateTableInfo(tree SQLNode, resources map[string]*dataset.Structure) er
 		}
 		return true, nil
 	})
-}
-
-func CollectColNames(tree SQLNode) (cols []*ColName) {
-	tree.WalkSubtree(func(node SQLNode) (bool, error) {
-		if col, ok := node.(*ColName); ok && node != nil {
-			cols = append(cols, col)
-		}
-		return true, nil
-	})
-	return
-}
-
-func SetSourceRow(cols []*ColName, sr SourceRow) error {
-	for _, col := range cols {
-		if col.Metadata.TableName == "" {
-			return fmt.Errorf("col missing metadata: %#v", col)
-		}
-		if col.Metadata.ColIndex > len(sr[col.Metadata.TableName])-1 {
-			return fmt.Errorf("index out of range to set column value: %s.%d", col.Metadata.TableName, col.Metadata.ColIndex)
-		}
-		col.Value = sr[col.Metadata.TableName][col.Metadata.ColIndex]
-	}
-	return nil
-}
-
-func QueryTypeForDataType(t datatypes.Type) q.Type {
-	switch t {
-	case datatypes.Integer:
-		return q.Type_INT64
-	case datatypes.Float:
-		return q.Type_FLOAT32
-	case datatypes.String:
-		return q.Type_TEXT
-	case datatypes.Boolean:
-		return QueryBoolType
-	case datatypes.Date:
-		return q.Type_DATE
-	default:
-		return q.Type_NULL_TYPE
-	}
 }
