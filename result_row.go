@@ -5,17 +5,17 @@ import (
 	"github.com/qri-io/dataset"
 )
 
-// RowGenerator makes rows from SourceRows
+// ResultRowGenerator makes rows from SourceRows
 // calling eval on a set of select expressions from a given
 // SourceRow
-type RowGenerator struct {
+type ResultRowGenerator struct {
 	exprs SelectExprs
 	aggs  []AggFunc
 	st    *dataset.Structure
 }
 
-func NewRowGenerator(sel *Select, result *dataset.Structure) (rg *RowGenerator, err error) {
-	rg = &RowGenerator{
+func NewResultRowGenerator(sel *Select, result *dataset.Structure) (rg *ResultRowGenerator, err error) {
+	rg = &ResultRowGenerator{
 		exprs: sel.SelectExprs,
 		st:    result,
 	}
@@ -33,7 +33,7 @@ var (
 )
 
 // GenerateRow generates a row
-func (rg *RowGenerator) GenerateRow() ([][]byte, error) {
+func (rg *ResultRowGenerator) GenerateRow() ([][]byte, error) {
 	row := make([][]byte, len(rg.exprs))
 	for i, expr := range rg.exprs {
 		_, data, err := expr.Eval()
@@ -49,11 +49,11 @@ func (rg *RowGenerator) GenerateRow() ([][]byte, error) {
 	return nil, ErrAggStmt
 }
 
-func (rg *RowGenerator) HasAggregates() bool {
+func (rg *ResultRowGenerator) HasAggregates() bool {
 	return len(rg.aggs) > 0
 }
 
-func (rg *RowGenerator) GenerateAggregateRow() ([][]byte, error) {
+func (rg *ResultRowGenerator) GenerateAggregateRow() ([][]byte, error) {
 	if rg.HasAggregates() {
 		// TODO - this is currently relying on order of returned results
 		// matching the resulting schema, which is a horrible idea.
@@ -66,6 +66,6 @@ func (rg *RowGenerator) GenerateAggregateRow() ([][]byte, error) {
 	return nil, ErrTableStmt
 }
 
-func (rg *RowGenerator) Structure() *dataset.Structure {
+func (rg *ResultRowGenerator) Structure() *dataset.Structure {
 	return rg.st
 }

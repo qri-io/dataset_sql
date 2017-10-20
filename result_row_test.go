@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestRowGenerator(t *testing.T) {
+func TestResultRowGenerator(t *testing.T) {
 	_, datasets, err := makeTestData()
 	if err != nil {
 		t.Errorf("error making test data: %s", err.Error())
@@ -28,7 +28,7 @@ func TestRowGenerator(t *testing.T) {
 	}
 	cols := CollectColNames(stmt)
 
-	rg, err := NewRowGenerator(stmt.(*Select), &dataset.Structure{})
+	rg, err := NewResultRowGenerator(stmt.(*Select), &dataset.Structure{})
 	if err != nil {
 		t.Errorf("error creating row generator: %s", err.Error())
 		return
