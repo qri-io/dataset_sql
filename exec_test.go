@@ -39,21 +39,18 @@ func TestSelectFields(t *testing.T) {
 		{"select created from t1 limit 5", nil, []*dataset.Field{created}, 5},
 		{"select t1.created from t1 limit 1 offset 1", nil, []*dataset.Field{created}, 1},
 		{"select * from t1 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		{"select * from t2 where title = 'test_title'", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
+		{"select * from t2 where title = 'test_title' order by title", nil, []*dataset.Field{created, title, views, rating, notes}, 0},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-		{"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
+		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100},
 		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1},
-		{"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1},
-		{"select sum(5) from t1", nil, []*dataset.Field{
+		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1},
+		{"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
 			&dataset.Field{Name: "sum", Type: datatypes.Float},
+			&dataset.Field{Name: "avg", Type: datatypes.Float},
+			&dataset.Field{Name: "count", Type: datatypes.Float},
+			&dataset.Field{Name: "max", Type: datatypes.Float},
+			&dataset.Field{Name: "min", Type: datatypes.Float},
 		}, 1},
-		// {"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
-		// 	&dataset.Field{Name: "sum", Type: datatypes.Float},
-		// 	&dataset.Field{Name: "avg", Type: datatypes.Float},
-		// 	&dataset.Field{Name: "count", Type: datatypes.Float},
-		// 	&dataset.Field{Name: "max", Type: datatypes.Float},
-		// 	&dataset.Field{Name: "min", Type: datatypes.Float},
-		// }, 1},
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2},
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1},
@@ -271,16 +268,16 @@ func makeTestData() (store cafs.Filestore, datasets map[string]*dataset.Dataset,
 	// 	o.Data = []byte("Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes\n")
 	// 	o.NumRandRecords = 9
 	// })
-	t1Data := []byte(`Sun Dec 25 09:25:46 2016,test_title,68882,0.6893978118896484,no notes
-Sun Dec 25 09:25:46 2016,title_2,68882,0.6893978118896484,note 2
-Sun Dec 25 09:25:46 2016,title_3,68882,0.6893978118896484,note 3
-Sun Dec 25 09:25:46 2016,title_4,68882,0.6893978118896484,note 4
-Sun Dec 25 09:25:46 2016,title_5,68882,0.6893978118896484,note 5
-Sun Dec 25 09:25:46 2016,title_6,68882,0.6893978118896484,note 6
-Sun Dec 25 09:25:46 2016,title_7,68882,0.6893978118896484,note 7
-Sun Dec 25 09:25:46 2016,title_8,68882,0.6893978118896484,note 8
-Sun Dec 25 09:25:46 2016,title_9,68882,0.6893978118896484,note 9
-Sun Dec 25 09:25:46 2016,title_10,68882,0.6893978118896484,note 10
+	t1Data := []byte(`Sun Dec 25 09:25:46 2016,test_title,0,0.6893978118896484,no notes
+Sun Dec 25 09:25:46 2016,title_2,1,0.6893978118896484,note 2
+Sun Dec 25 09:25:46 2016,title_3,2,0.6893978118896484,note 3
+Sun Dec 25 09:25:46 2016,title_4,3,0.6893978118896484,note 4
+Sun Dec 25 09:25:46 2016,title_5,4,0.6893978118896484,note 5
+Sun Dec 25 09:25:46 2016,title_6,5,0.6893978118896484,note 6
+Sun Dec 25 09:25:46 2016,title_7,6,0.6893978118896484,note 7
+Sun Dec 25 09:25:46 2016,title_8,7,0.6893978118896484,note 8
+Sun Dec 25 09:25:46 2016,title_9,8,0.6893978118896484,note 9
+Sun Dec 25 09:25:46 2016,title_10,9,0.6893978118896484,note 10
 `)
 
 	t1 := &dataset.Dataset{

@@ -27,14 +27,21 @@ func (node *ComparisonExpr) Compare() (bool, error) {
 	l := sqltypes.MakeTrusted(lt, left)
 	r := sqltypes.MakeTrusted(rt, right)
 
-	// l, err := sqltypes.BuildValue(left)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// r, err := sqltypes.BuildValue(right)
-	// if err != nil {
-	// 	return false, err
-	// }
+	// TODO - sad exception case for when straight Boolean values
+	// are passed in, should clean this up by removing QueryBoolType
+	if lt == QueryBoolType {
+		l, err = sqltypes.BuildValue(left)
+		if err != nil {
+			return false, err
+		}
+	}
+	if rt == QueryBoolType {
+		r, err = sqltypes.BuildValue(right)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	var result int
 	if lt == pb.Type_TEXT && rt == pb.Type_TEXT {
 		result = bytes.Compare(left, right)

@@ -41,7 +41,7 @@ func (node *FuncExpr) Function() (fn AggFunc, err error) {
 
 func (node *FuncExpr) Datatype() datatypes.Type {
 	switch node.Name.Lowered() {
-	case "sum":
+	case "sum", "avg", "count", "max", "min":
 		return datatypes.Float
 	}
 	return datatypes.Any
@@ -132,7 +132,7 @@ func (af *aggFunc) Eval() (q.Type, []byte, error) {
 }
 
 func (af *aggFunc) Value() []byte {
-	fmt.Println(af.Name, af.fn.Value())
+	// fmt.Println(af.Name, af.fn.Value())
 	val, err := datatypes.Float.ValueToBytes(af.fn.Value())
 	if err != nil {
 		return nil
@@ -162,7 +162,7 @@ func (a avgFunc) Value() float32 { return a.total / float32(a.count) }
 
 type sumFunc struct{ total float32 }
 
-func (a *sumFunc) Eval(val float32) { a.total++ }
+func (a *sumFunc) Eval(val float32) { a.total += val }
 func (a sumFunc) Value() float32    { return a.total }
 
 type countFunc struct{ count int }

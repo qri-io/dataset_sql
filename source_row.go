@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/ipfs/go-datastore"
@@ -136,16 +137,31 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 // to see if they should be added to the resulting dataset internal state
 // for example, things like current status in a LIMIT / OFFSET
 type SourceRowFilter struct {
-	ast     Statement
-	passed  int64
-	limit   int64
-	offset  int64
-	test    *Where
-	calcAll bool
+	ast      Statement
+	passed   int64
+	limit    int64
+	offset   int64
+	test     *Where
+	calcAll  bool
+	distinct bool
+	buf      *RowBuffer
 }
 
-func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
-	sr = &SourceRowFilter{}
+func NewSourceRowFilter(ast Statement, buf dsio.ReadWriter) (srf *SourceRowFilter, err error) {
+	srf = &SourceRowFilter{}
+
+	if sel, ok := ast.(*Select); ok && sel.Distinct != "" {
+		srf.distinct = true
+	}
+
+	if rowBuf, ok := buf.(*RowBuffer); ok {
+		srf.buf = rowBuf
+	}
+
+	if srf.distinct && srf.buf == nil {
+		return nil, fmt.Errorf("statment requires a row buffer")
+	}
+
 	err = ast.WalkSubtree(func(node SQLNode) (bool, error) {
 		if node == nil {
 			return true, nil
@@ -153,18 +169,18 @@ func NewSourceRowFilter(ast Statement) (sr *SourceRowFilter, err error) {
 		switch n := node.(type) {
 		case *Where:
 			if n != nil {
-				sr.test = n
+				srf.test = n
 			}
 		case *Limit:
 			if n != nil {
-				sr.limit, sr.offset, err = n.Counts()
+				srf.limit, srf.offset, err = n.Counts()
 				if err != nil {
 					return false, err
 				}
 			}
 		case OrderBy:
 			if n != nil {
-				sr.calcAll = true
+				srf.calcAll = true
 			}
 		}
 		return true, nil
@@ -189,7 +205,15 @@ func (srf *SourceRowFilter) Match() bool {
 		}
 		return true
 	}
+
 	return false
+}
+
+func (srf *SourceRowFilter) ShouldWriteRow(row [][]byte) bool {
+	if srf.distinct {
+		return srf.buf.HasRow(row)
+	}
+	return true
 }
 
 // Done indicates we don't need to iterate anymore

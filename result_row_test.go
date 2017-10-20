@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestRowGenerator(t *testing.T) {
+func TestResultRowGenerator(t *testing.T) {
 	_, datasets, err := makeTestData()
 	if err != nil {
 		t.Errorf("error making test data: %s", err.Error())
@@ -22,15 +22,15 @@ func TestRowGenerator(t *testing.T) {
 		return
 	}
 
-	cols := CollectColNames(stmt)
-	rg, err := NewRowGenerator(stmt, resources, &dataset.Structure{}, &cols)
-	if err != nil {
-		t.Errorf("error creating row generator: %s", err.Error())
+	if err := PrepareStatement(stmt, resources); err != nil {
+		t.Errorf("error remapping statement: %s", err.Error())
 		return
 	}
+	cols := CollectColNames(stmt)
 
-	if err := PopulateTableInfo(stmt, resources); err != nil {
-		t.Errorf("error populating table info: %s", err.Error())
+	rg, err := NewResultRowGenerator(stmt.(*Select), &dataset.Structure{})
+	if err != nil {
+		t.Errorf("error creating row generator: %s", err.Error())
 		return
 	}
 
