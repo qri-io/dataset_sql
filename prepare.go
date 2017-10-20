@@ -29,17 +29,13 @@ func Prepare(ds *dataset.Dataset, opts *ExecOpt) (Statement, map[string]datastor
 		return nil, nil, err
 	}
 
-	_, stmt, remap, err := Format(ds.QueryString)
+	queryString, stmt, remap, err := Format(ds)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// TODO - turn this on once we have client-side formatting
 	// ds.QueryString = queryString
-
-	ds.Query = &dataset.Query{
-		Structures: map[string]*dataset.Structure{},
-	}
 
 	paths := map[string]datastore.Key{}
 	// collect table references
@@ -53,60 +49,11 @@ func Prepare(ds *dataset.Dataset, opts *ExecOpt) (Statement, map[string]datastor
 	}
 
 	ds.Query.Syntax = "sql"
-	ds.Query.Statement = String(stmt)
+	ds.Query.Statement = queryString
 	ds.Query.Structure, err = ResultStructure(stmt, ds.Query.Structures, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// This is a basic-column name rewriter from concrete to abstract
-	err = stmt.WalkSubtree(func(node SQLNode) (bool, error) {
-		// if ae, ok := node.(*AliasedExpr); ok && ae != nil {
-		if cn, ok := node.(*ColName); ok && cn != nil {
-			// TODO - check qualifier to avoid extra loopage
-			// if cn.Qualifier.String() != "" {
-			// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
-			// 		if cn.Name.String() ==
-			// 	}
-			// }
-			for con, r := range ds.Resources {
-				for i, f := range r.Structure.Schema.Fields {
-					if f.Name == cn.Name.String() {
-						for mapped, ref := range remap {
-							if ref == con {
-								// fmt.Println(ref, con, mapped)
-								// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
-								// fmt.Println(String(cn))
-								// fmt.Println(String(&ColName{
-								// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
-								// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
-								// }))
-
-								*cn = ColName{
-									Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
-									Qualifier: TableName{Name: NewTableIdent(mapped)},
-								}
-							}
-						}
-						return false, nil
-					}
-				}
-				// }
-			}
-		}
-		return true, nil
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// result = ds.Query.Structure
-	// resources := map[string]*dataset.Structure{}
-	// ads := map[string]*dataset.Dataset{}
-	// for abst, con := range remap {
-	// 	resources[abst] = ds.Query.Structures[abst]
-	// 	ads[abst] = ds.Resources[con]
-	// }
 
 	err = PrepareStatement(stmt, ds.Query.Structures)
 	return stmt, paths, err
@@ -160,7 +107,7 @@ func starExprSelectExprs(star *StarExpr, resources map[string]*dataset.Structure
 			for i, f := range resourceData.Schema.Fields {
 				col := &ColName{
 					Name:      NewColIdent(f.Name),
-					Qualifier: TableName{Qualifier: NewTableIdent(tableName)},
+					Qualifier: TableName{Name: NewTableIdent(tableName)},
 					Metadata: StructureRef{
 						TableName: tableName,
 						Field:     f,

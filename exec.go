@@ -72,7 +72,7 @@ func SetSourceRow(cols []*ColName, sr SourceRow) error {
 func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[string]datastore.Key, opts *ExecOpt) (result *dataset.Structure, resultBytes []byte, err error) {
 
 	cols := CollectColNames(stmt)
-	buf := NewResultBuffer(stmt, ds.Structure)
+	buf := NewResultBuffer(stmt, ds.Query.Structure)
 	srg, err := NewSourceRowGenerator(store, remap, ds.Query.Structures)
 	if err != nil {
 		return result, nil, err
@@ -81,7 +81,7 @@ func (stmt *Select) exec(store cafs.Filestore, ds *dataset.Dataset, remap map[st
 	if err != nil {
 		return result, nil, err
 	}
-	rrg, err := NewResultRowGenerator(stmt, result)
+	rrg, err := NewResultRowGenerator(stmt, ds.Query.Structure)
 	if err != nil {
 		return result, nil, err
 	}
