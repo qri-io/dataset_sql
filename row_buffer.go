@@ -157,7 +157,7 @@ func makeLessFunc(rb *RowBuffer, stmt Statement, st *dataset.Structure) (*func(i
 			if err != nil {
 				continue
 			}
-			if (o.desc && l > 0) || l < 0 {
+			if (o.desc && l < 0) || l > 0 {
 				continue
 			}
 			return true
