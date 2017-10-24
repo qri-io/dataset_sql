@@ -93,7 +93,7 @@ func (srg *SourceRowGenerator) Row() (SourceRow, error) {
 
 // rowReader wraps a dsio.reader with additional required state
 type rowReader struct {
-	reader dsio.Reader
+	reader dsio.RowReader
 	name   string
 	path   datastore.Key
 	st     *dataset.Structure
@@ -129,7 +129,7 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 	}
 	rr.i = 0
 	rr.done = false
-	rr.reader = dsio.NewReader(rr.st, f)
+	rr.reader = dsio.NewRowReader(rr.st, f)
 	return rr.Next()
 }
 
@@ -147,7 +147,7 @@ type SourceRowFilter struct {
 	buf      *RowBuffer
 }
 
-func NewSourceRowFilter(ast Statement, buf dsio.ReadWriter) (srf *SourceRowFilter, err error) {
+func NewSourceRowFilter(ast Statement, buf dsio.RowReadWriter) (srf *SourceRowFilter, err error) {
 	srf = &SourceRowFilter{}
 
 	if sel, ok := ast.(*Select); ok && sel.Distinct != "" {
