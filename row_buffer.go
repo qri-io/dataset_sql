@@ -142,7 +142,7 @@ func makeLessFunc(rb *RowBuffer, stmt Statement, st *dataset.Structure) (*func(i
 			// TODO - horrible hack, will break when sorting on multiple tables, or with non-abstract
 			// statements.
 			str := String(o.Expr)
-			str = string(bytes.TrimPrefix([]byte(str), []byte("a.")))
+			str = string(bytes.TrimPrefix([]byte(str), []byte("t1.")))
 			idx := st.StringFieldIndex(str)
 			if idx < 0 {
 				return nil, fmt.Errorf("couldn't find sort index: %s", String(o.Expr))

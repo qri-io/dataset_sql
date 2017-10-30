@@ -6,7 +6,7 @@ import (
 )
 
 func TestResultRowGenerator(t *testing.T) {
-	_, datasets, err := makeTestData()
+	_, datasets, err := makeTestStore()
 	if err != nil {
 		t.Errorf("error making test data: %s", err.Error())
 		return
