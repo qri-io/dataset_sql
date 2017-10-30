@@ -8,7 +8,7 @@ import (
 )
 
 func TestSourceRowGenerator(t *testing.T) {
-	store, resources, err := makeTestData()
+	store, resources, err := makeTestStore()
 	if err != nil {
 		t.Errorf("error creating test data: %s", err.Error())
 		return
