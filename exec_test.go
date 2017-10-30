@@ -26,33 +26,30 @@ func TestSelectFields(t *testing.T) {
 	created, title, views, rating, notes := t1f[0], t1f[1], t1f[2], t1f[3], t1f[4]
 
 	cases := []execTestCase{
-		{"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, "precip/t1.csv"},
-		{"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, "precip/t1.csv"},
-		{"select created from t1", nil, []*dataset.Field{created}, "precip/t1_created.csv"},
-		{"select t1.created, t1.title, t1.views, t1.rating, t1.notes from t1 limit 1 offset 1", nil, []*dataset.Field{created, title, views, rating, notes}, "precip/t1_row_2.csv"},
-		{"select created, t1.title, t1.views, rating, notes from t1 where title = 'title_2'", nil, []*dataset.Field{created, title, views, rating, notes}, "precip/t1_row_2.csv"},
+		{"select * from t1", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1.csv"},
+		{"select created, title, views, rating, notes from t1", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1.csv"},
+		{"select created from t1", nil, []*dataset.Field{created}, "ratings/t1_created.csv"},
+		{"select t1.created, t1.title, t1.views, t1.rating, t1.notes from t1 limit 1 offset 1", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1_row_2.csv"},
+		{"select created, t1.title, t1.views, rating, notes from t1 where title = 'title_2'", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1_row_2.csv"},
 		{"select * from t2 where title = 'test_title' order by title", nil, []*dataset.Field{created, title, views, rating, notes}, ""},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, ""},
 		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100, ""},
 		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
 		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
+		{"select * from t2 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t2_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
 			&dataset.Field{Name: "sum", Type: datatypes.Float},
 			&dataset.Field{Name: "avg", Type: datatypes.Float},
 			&dataset.Field{Name: "count", Type: datatypes.Float},
 			&dataset.Field{Name: "max", Type: datatypes.Float},
 			&dataset.Field{Name: "min", Type: datatypes.Float},
-		}, "precip/t1_agg.csv"},
+		}, "ratings/t1_agg.csv"},
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2, ""},
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1, ""},
 	}
 
 	runCases(store, resources, cases, t)
-}
-
-func TestOrderBy(t *testing.T) {
-
 }
 
 // func TestNullValues(t *testing.T) {
@@ -70,7 +67,7 @@ func TestOrderBy(t *testing.T) {
 // 		o.NumRandRecords = 0
 // 	})
 
-// 	airportCodes, err := loadTestdata("precip/dataset.json", "precip/precip_1.csv")
+// 	airportCodes, err := loadTestdata("ratings/dataset.json", "ratings/ratings_1.csv")
 // 	if err != nil {
 // 		t.Errorf("error loading test data '%s': %s", "airport_codes", err.Error())
 // 		return
@@ -184,8 +181,8 @@ func makeTestStore() (store cafs.Filestore, datasets map[string]*dataset.Dataset
 	testData := []struct {
 		name, dspath, datapath string
 	}{
-		{"t1", "precip/dataset.json", "precip/t1.csv"},
-		{"t2", "precip/dataset.json", "precip/t2.csv"},
+		{"t1", "ratings/dataset.json", "ratings/t1.csv"},
+		{"t2", "ratings/dataset.json", "ratings/t2.csv"},
 	}
 
 	for _, td := range testData {
