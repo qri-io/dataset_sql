@@ -111,6 +111,13 @@ func (af *aggFunc) Eval() (q.Type, []byte, error) {
 
 	var v float32
 	for i, val := range vs {
+		if len(val) == 0 {
+			if af.Name != "sum" {
+				af.fn.Eval(0)
+			}
+			continue
+		}
+
 		switch ts[i] {
 		case q.Type_INT64:
 			value, err := datatypes.ParseInteger(val)

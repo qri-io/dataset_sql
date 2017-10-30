@@ -31,11 +31,10 @@ func TestSelectFields(t *testing.T) {
 		{"select created from t1", nil, []*dataset.Field{created}, "ratings/t1_created.csv"},
 		{"select t1.created, t1.title, t1.views, t1.rating, t1.notes from t1 limit 1 offset 1", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1_row_2.csv"},
 		{"select created, t1.title, t1.views, rating, notes from t1 where title = 'title_2'", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t1_row_2.csv"},
+
 		{"select * from t2 where title = 'test_title' order by title", nil, []*dataset.Field{created, title, views, rating, notes}, ""},
 		{"select * from t2 where title = 'test_title_two'", nil, []*dataset.Field{created, title, views, rating, notes}, ""},
-		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100, ""},
-		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
-		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
+
 		{"select * from t2 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t2_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
 			&dataset.Field{Name: "sum", Type: datatypes.Float},
@@ -44,6 +43,20 @@ func TestSelectFields(t *testing.T) {
 			&dataset.Field{Name: "max", Type: datatypes.Float},
 			&dataset.Field{Name: "min", Type: datatypes.Float},
 		}, "ratings/t1_agg.csv"},
+
+		{"select * from t3 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t3_order_rating.csv"},
+		{"select sum(views), avg(views), count(views), max(views), min(views) from t3", nil, []*dataset.Field{
+			&dataset.Field{Name: "sum", Type: datatypes.Float},
+			&dataset.Field{Name: "avg", Type: datatypes.Float},
+			&dataset.Field{Name: "count", Type: datatypes.Float},
+			&dataset.Field{Name: "max", Type: datatypes.Float},
+			&dataset.Field{Name: "min", Type: datatypes.Float},
+		}, "ratings/t3_agg.csv"},
+
+		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100, ""},
+		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
+		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
+
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2, ""},
 		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1, ""},
@@ -183,6 +196,7 @@ func makeTestStore() (store cafs.Filestore, datasets map[string]*dataset.Dataset
 	}{
 		{"t1", "ratings/dataset.json", "ratings/t1.csv"},
 		{"t2", "ratings/dataset.json", "ratings/t2.csv"},
+		{"t3", "ratings/dataset.json", "ratings/t3.csv"},
 	}
 
 	for _, td := range testData {
