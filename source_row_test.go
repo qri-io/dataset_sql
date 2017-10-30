@@ -16,9 +16,9 @@ func TestSourceRowGenerator(t *testing.T) {
 
 	datamap := map[string]datastore.Key{}
 	st := map[string]*dataset.Structure{}
-	for name, r := range resources {
-		datamap[name] = r.Data
-		st[name] = r.Structure
+	for _, name := range []string{"t1", "t2"} {
+		datamap[name] = resources[name].Data
+		st[name] = resources[name].Structure
 	}
 
 	srg, err := NewSourceRowGenerator(store, datamap, st)

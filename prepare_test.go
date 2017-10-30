@@ -34,13 +34,13 @@ func TestPrepare(t *testing.T) {
 	}
 
 	str := String(stmt)
-	expect := "select a.col_0 as col_0, a.col_1 as col_1 from a"
+	expect := "select t1.a as a, t1.b as b from t1"
 	if expect != str {
 		t.Errorf("statement error, expected: '%s', got: '%s'", expect, str)
 		return
 	}
 
-	if paths["a"].String() != "/t1/data/path" {
+	if paths["t1"].String() != "/t1/data/path" {
 		t.Errorf("data path error, expected %s, got %s", "/t1/data/path", paths["a"].String())
 	}
 }

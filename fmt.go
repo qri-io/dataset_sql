@@ -7,9 +7,6 @@ import (
 	"github.com/qri-io/dataset/datatypes"
 )
 
-// TODO - lololololololol
-var abstractNames = []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p"}
-
 func StatementTableNames(sql string) ([]string, error) {
 	stmt, err := Parse(sql)
 	if err != nil {
@@ -56,7 +53,7 @@ func Format(ds *dataset.Dataset) (string, Statement, map[string]string, error) {
 					}
 				}
 
-				set := abstractNames[i]
+				set := dataset.AbstractTableName(i)
 				i++
 				remap[set] = current
 				ate.Expr = TableName{Name: TableIdent{set}}
@@ -92,14 +89,6 @@ func Format(ds *dataset.Dataset) (string, Statement, map[string]string, error) {
 					if f.Name == cn.Name.String() {
 						for mapped, ref := range remap {
 							if ref == con {
-								// fmt.Println(ref, con, mapped)
-								// fmt.Println("MATCH", ds.Query.Structures[mapped].Schema.Fields[i].Name)
-								// fmt.Println(String(cn))
-								// fmt.Println(String(&ColName{
-								// 	Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
-								// 	Qualifier: TableName{Name: NewTableIdent(mapped)},
-								// }))
-
 								*cn = ColName{
 									Name:      NewColIdent(ds.Query.Structures[mapped].Schema.Fields[i].Name),
 									Qualifier: TableName{Name: NewTableIdent(mapped)},
@@ -132,7 +121,7 @@ func abstractStructures(concrete map[string]*dataset.Structure) (algStructures m
 
 	i := 0
 	for name, str := range concrete {
-		an := abstractNames[i]
+		an := dataset.AbstractColumnName(i)
 		algStructures[an] = str.Abstract()
 		remap[name] = an
 		i++
