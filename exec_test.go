@@ -55,8 +55,23 @@ func TestSelectFields(t *testing.T) {
 
 		{"select * from t3 where views > 5", nil, []*dataset.Field{created, title, views, rating, notes}, "empty.csv"},
 		{"select * from t3 where views < 3", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t3_views_less_than_3.csv"},
+	}
 
-		// {"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 100, ""},
+	runCases(store, resources, cases, t)
+}
+
+func TestSelectJoin(t *testing.T) {
+	store, resources, err := makeTestStore()
+	if err != nil {
+		t.Errorf("error creating test data: %s", err.Error())
+		return
+	}
+
+	t1f := resources["t1"].Structure.Schema.Fields
+	created, title, views, rating, notes := t1f[0], t1f[1], t1f[2], t1f[3], t1f[4]
+
+	cases := []execTestCase{
+		{"select * from t1, t2", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
 		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
 		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
 
@@ -67,65 +82,6 @@ func TestSelectFields(t *testing.T) {
 
 	runCases(store, resources, cases, t)
 }
-
-// func TestNullValues(t *testing.T) {
-// 	created := &dataset.Field{Name: "created", Type: datatypes.Date}
-// 	title := &dataset.Field{Name: "title", Type: datatypes.String}
-// 	views := &dataset.Field{Name: "views", Type: datatypes.Integer}
-// 	rating := &dataset.Field{Name: "rating", Type: datatypes.Float}
-// 	notes := &dataset.Field{Name: "notes", Type: datatypes.String}
-
-// 	ds := generate.RandomStructure(func(o *generate.RandomStructureOpts) {
-// 		// o.Name = "null_values_test"
-// 		// o.Address = dataset.NewAddress("test.null_values_test")
-// 		o.Fields = []*dataset.Field{created, title, views, rating, notes}
-// 		o.Data = []byte(",,,,\n")
-// 		o.NumRandRecords = 0
-// 	})
-
-// 	airportCodes, err := loadTestdata("ratings/dataset.json", "ratings/ratings_1.csv")
-// 	if err != nil {
-// 		t.Errorf("error loading test data '%s': %s", "airport_codes", err.Error())
-// 		return
-// 	}
-
-// 	ns := mem.NewNamespace(dataset.NewAddress("test"), []*dataset.Resource{ds, airportCodes}, nil)
-
-// 	runCases([]execTestCase{
-// 		{"select * from test.null_values_test", nil, []*dataset.Field{created, title, views, rating, notes}, 1},
-// 		{"select * from okfn.airport_codes limit 500", nil, airportCodes.Fields, 500},
-// 	}, ns, t)
-
-// 	// _, data, err := stmt.Exec(ns)
-// 	// if err != nil {
-// 	// 	t.Errorf("unexpected error executing statement: %s", err.Error())
-// 	// 	return
-// 	// }
-
-// 	// // for j, f := range c.fields {
-// 	// // 	if results.Fields[j].Name != f.Name {
-// 	// // 		t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, results.Fields[j].Name)
-// 	// // 		return
-// 	// // 	}
-// 	// // 	if results.Fields[j].Type != f.Type {
-// 	// // 		t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, results.Fields[j].Type)
-// 	// // 		return
-// 	// // 	}
-// 	// // }
-
-// 	// r := csv.NewReader(bytes.NewBuffer(data))
-// 	// records, err := r.ReadAll()
-// 	// if err != nil {
-// 	// 	t.Error(err.Error())
-// 	// 	return
-// 	// }
-
-// 	// if len(records) != 1 {
-// 	// 	t.Errorf("case result count mismatch. expected: %d, got: %d", 1, len(records))
-// 	// 	return
-// 	// }
-
-// }
 
 type execTestCase struct {
 	statement  string

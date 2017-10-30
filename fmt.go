@@ -158,7 +158,7 @@ EXPRESSIONS:
 			name := sexpr.TableName.String()
 			for tableName, r := range resources {
 				// we add fields if the names match, or if no name is specified
-				if tableName == name || name == "" {
+				if name == "" || tableName == name {
 					st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
 				}
 			}

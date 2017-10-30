@@ -90,7 +90,6 @@ func fitASTResources(ast SQLNode, resources map[string]*dataset.Structure) error
 					return false, replaceSelectExprs(parent, node, se)
 				}
 			}
-
 			return true, nil
 		}
 	}
@@ -102,7 +101,7 @@ func starExprSelectExprs(star *StarExpr, resources map[string]*dataset.Structure
 	name := star.TableName.String()
 	for tableName, resourceData := range resources {
 		// we add fields if the names match, or if no name is specified
-		if tableName == name || name == "" && len(resources) == 1 {
+		if name == "" || tableName == name {
 			se := make(SelectExprs, len(resourceData.Schema.Fields))
 			for i, f := range resourceData.Schema.Fields {
 				col := &ColName{
