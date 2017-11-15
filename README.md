@@ -6,7 +6,7 @@
 <!-- [![Codecov](https://img.shields.io/codecov/c/github/qri-io/dataset_sql.svg?style=flat-square)](https://codecov.io/gh/qri-io/dataset_sql)
 [![CI](https://img.shields.io/circleci/project/github/qri-io/dataset_sql.svg?style=flat-square)](https://circleci.com/gh/qri-io/dataset_sql) -->
 
-dataset_sql is the package that makes qri do it's sql trick. for more info check qri.io
+dataset_sql is the package that makes qri do it's sql trick. for more info check https://qri.io
 
 ## Getting Involved
 
