@@ -22,7 +22,6 @@ type preparedQuery struct {
 func PreparedQueryPath(fs cafs.Filestore, q *dataset.Query, opts *ExecOpt) (datastore.Key, error) {
 	q2 := &dataset.Query{}
 	q2.Assign(q)
-	fmt.Println(q2)
 	prep, err := Prepare(q2, opts)
 	if err != nil {
 		return datastore.NewKey(""), err
