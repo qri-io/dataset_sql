@@ -16,7 +16,7 @@ func NewResultBuffer(stmt Statement, st *dataset.Structure) (dsio.RowReadWriter,
 	if needsRowBuffer(stmt) {
 		return NewRowBuffer(stmt, st)
 	}
-	return dsio.NewBuffer(st)
+	return dsio.NewStructuredBuffer(st)
 }
 
 // Checks to see if we need a RowBuffer at all. Statements that don't contain
@@ -37,13 +37,13 @@ func needsRowBuffer(stmt Statement) bool {
 type RowBuffer struct {
 	rows [][][]byte
 	less *func(i, j int) bool
-	buf  *dsio.Buffer
+	buf  *dsio.StructuredBuffer
 	err  error
 }
 
 // NewRowBuffer allocates a RowBuffer from a statement
 func NewRowBuffer(stmt Statement, st *dataset.Structure) (*RowBuffer, error) {
-	buf, err := dsio.NewBuffer(st)
+	buf, err := dsio.NewStructuredBuffer(st)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func NewRowBuffer(stmt Statement, st *dataset.Structure) (*RowBuffer, error) {
 	return rb, nil
 }
 
-func (rb *RowBuffer) Structure() dataset.Structure {
+func (rb *RowBuffer) Structure() *dataset.Structure {
 	return rb.buf.Structure()
 }
 

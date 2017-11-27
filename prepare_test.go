@@ -16,14 +16,14 @@ func TestPrepare(t *testing.T) {
 			Statement: "select * from t1",
 		},
 		Resources: map[string]*dataset.Dataset{
-			"t1": &dataset.Dataset{
+			"t1": {
 				Data: datastore.NewKey("t1/data/path"),
 				Structure: &dataset.Structure{
-					Format: dataset.CsvDataFormat,
+					Format: dataset.CSVDataFormat,
 					Schema: &dataset.Schema{
 						Fields: []*dataset.Field{
-							&dataset.Field{Name: "one", Type: datatypes.String},
-							&dataset.Field{Name: "two", Type: datatypes.Boolean},
+							{Name: "one", Type: datatypes.String},
+							{Name: "two", Type: datatypes.Boolean},
 						},
 					},
 				},
@@ -31,7 +31,7 @@ func TestPrepare(t *testing.T) {
 		},
 	}
 
-	prep, err := Prepare(ds, &ExecOpt{Format: dataset.CsvDataFormat})
+	prep, err := Prepare(ds, &ExecOpt{Format: dataset.CSVDataFormat})
 	if err != nil {
 		t.Errorf("unexpected error from Prepare: %s", err.Error())
 		return
@@ -57,7 +57,7 @@ func TestPreparedQueryPath(t *testing.T) {
 	}
 
 	opts := &ExecOpt{
-		Format: dataset.CsvDataFormat,
+		Format: dataset.CSVDataFormat,
 	}
 
 	q := &dataset.Query{
@@ -77,7 +77,7 @@ func TestPreparedQueryPath(t *testing.T) {
 		return
 	}
 
-	_, _, err = Exec(store, q, func(o *ExecOpt) { o.Format = dataset.CsvDataFormat })
+	_, _, err = Exec(store, q, func(o *ExecOpt) { o.Format = dataset.CSVDataFormat })
 	if err != nil {
 		t.Errorf("error executing query: %s", err.Error())
 		return
@@ -112,12 +112,12 @@ func TestPrepareStatement(t *testing.T) {
 	}
 
 	resources := map[string]*dataset.Structure{
-		"t1": &dataset.Structure{
-			Format: dataset.CsvDataFormat,
+		"t1": {
+			Format: dataset.CSVDataFormat,
 			Schema: &dataset.Schema{
 				Fields: []*dataset.Field{
-					&dataset.Field{Name: "a", Type: datatypes.Integer},
-					&dataset.Field{Name: "b", Type: datatypes.Float},
+					{Name: "a", Type: datatypes.Integer},
+					{Name: "b", Type: datatypes.Float},
 				},
 			},
 		},
