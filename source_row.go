@@ -15,6 +15,21 @@ import (
 // identitifed by a string
 type SourceRow map[string][][]byte
 
+// SetSourceRow sets ColName values to the current SourceRow
+// value for evaluation
+func SetSourceRow(cols []*ColName, sr SourceRow) error {
+	for _, col := range cols {
+		if col.Metadata.TableName == "" {
+			return fmt.Errorf("col missing metadata: %#v", col)
+		}
+		if col.Metadata.ColIndex > len(sr[col.Metadata.TableName])-1 {
+			return fmt.Errorf("index out of range to set column value: %s.%d", col.Metadata.TableName, col.Metadata.ColIndex)
+		}
+		col.Value = sr[col.Metadata.TableName][col.Metadata.ColIndex]
+	}
+	return nil
+}
+
 // SourcRowGenerator consumes dataset data readers
 // generating SourceRows.
 // It's main job is to generate the exhastive
@@ -129,7 +144,10 @@ func (rr *rowReader) Reset(store cafs.Filestore) error {
 	}
 	rr.i = 0
 	rr.done = false
-	rr.reader = dsio.NewRowReader(rr.st, f)
+	rr.reader, err = dsio.NewRowReader(rr.st, f)
+	if err != nil {
+		return err
+	}
 	return rr.Next()
 }
 

@@ -13,7 +13,7 @@ type ExecOpt struct {
 
 func opts(options ...func(*ExecOpt)) *ExecOpt {
 	o := &ExecOpt{
-		Format: dataset.CsvDataFormat,
+		Format: dataset.CSVDataFormat,
 	}
 	for _, option := range options {
 		option(o)
@@ -23,7 +23,7 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 
 func Exec(store cafs.Filestore, q *dataset.Query, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
 	opts := &ExecOpt{
-		Format: dataset.CsvDataFormat,
+		Format: dataset.CSVDataFormat,
 	}
 	for _, option := range options {
 		option(opts)
@@ -53,26 +53,14 @@ func CollectColNames(stmt Statement) (cols []*ColName) {
 	return
 }
 
-// SetSourceRow sets ColName values to the current SourceRow
-// value for evaluation
-func SetSourceRow(cols []*ColName, sr SourceRow) error {
-	for _, col := range cols {
-		if col.Metadata.TableName == "" {
-			return fmt.Errorf("col missing metadata: %#v", col)
-		}
-		if col.Metadata.ColIndex > len(sr[col.Metadata.TableName])-1 {
-			return fmt.Errorf("index out of range to set column value: %s.%d", col.Metadata.TableName, col.Metadata.ColIndex)
-		}
-		col.Value = sr[col.Metadata.TableName][col.Metadata.ColIndex]
-	}
-	return nil
-}
-
 func (stmt *Select) exec(store cafs.Filestore, prep preparedQuery) (result *dataset.Structure, resultBytes []byte, err error) {
 	q := prep.q
 	absq := q.Abstract
 	cols := CollectColNames(stmt)
-	buf := NewResultBuffer(stmt, absq.Structure)
+	buf, err := NewResultBuffer(stmt, absq.Structure)
+	if err != nil {
+		return result, nil, err
+	}
 	srg, err := NewSourceRowGenerator(store, prep.paths, absq.Structures)
 	if err != nil {
 		return result, nil, err

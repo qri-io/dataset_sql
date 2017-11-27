@@ -36,20 +36,21 @@ func TestSelectFields(t *testing.T) {
 
 		{"select * from t2 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t2_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t1", nil, []*dataset.Field{
-			&dataset.Field{Name: "sum", Type: datatypes.Float},
-			&dataset.Field{Name: "avg", Type: datatypes.Float},
-			&dataset.Field{Name: "count", Type: datatypes.Float},
-			&dataset.Field{Name: "max", Type: datatypes.Float},
-			&dataset.Field{Name: "min", Type: datatypes.Float},
+			{Name: "sum", Type: datatypes.Float},
+			{Name: "avg", Type: datatypes.Float},
+			{Name: "count", Type: datatypes.Float},
+			{Name: "max", Type: datatypes.Float},
+			{Name: "min", Type: datatypes.Float},
 		}, "ratings/t1_agg.csv"},
 
+		// TODO - order by isn't working properly.
 		{"select * from t3 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t3_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t3", nil, []*dataset.Field{
-			&dataset.Field{Name: "sum", Type: datatypes.Float},
-			&dataset.Field{Name: "avg", Type: datatypes.Float},
-			&dataset.Field{Name: "count", Type: datatypes.Float},
-			&dataset.Field{Name: "max", Type: datatypes.Float},
-			&dataset.Field{Name: "min", Type: datatypes.Float},
+			{Name: "sum", Type: datatypes.Float},
+			{Name: "avg", Type: datatypes.Float},
+			{Name: "count", Type: datatypes.Float},
+			{Name: "max", Type: datatypes.Float},
+			{Name: "min", Type: datatypes.Float},
 		}, "ratings/t3_agg.csv"},
 
 		{"select * from t3 where views > 5", nil, []*dataset.Field{created, title, views, rating, notes}, "empty.csv"},
@@ -73,7 +74,7 @@ func TestSelectJoin(t *testing.T) {
 		{"select * from t1, t2 where t1.title = t2.title order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
 		{`SELECT t1.views as v, t2.notes as n 
 			FROM t1 LEFT JOIN t2 
-			ON t1.title = t2.title`, nil, []*dataset.Field{&dataset.Field{Name: "v", Type: datatypes.Integer}, &dataset.Field{Name: "n", Type: datatypes.String}}, ""},
+			ON t1.title = t2.title`, nil, []*dataset.Field{{Name: "v", Type: datatypes.Integer}, {Name: "n", Type: datatypes.String}}, ""},
 		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
 		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
 
@@ -104,7 +105,7 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 		}
 
 		results, data, err := Exec(store, q, func(o *ExecOpt) {
-			o.Format = dataset.CsvDataFormat
+			o.Format = dataset.CSVDataFormat
 		})
 		if err != c.expect {
 			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.expect, err.Error())
@@ -141,7 +142,8 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 					continue
 				}
 
-				t.Errorf("case %d mismatch:\n%s", i, dmp.DiffPrettyText(diffs))
+				t.Errorf("case %d mismatch: %s\n", i, c.statement)
+				t.Errorf("\n%s", dmp.DiffPrettyText(diffs))
 				if len(expect) < 50 {
 					t.Errorf("expected: %s, got: %s", string(expect), string(data))
 				}

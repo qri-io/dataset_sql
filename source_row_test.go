@@ -58,11 +58,11 @@ func TestSourceRowFilter(t *testing.T) {
 	}
 
 	resources := map[string]*dataset.Structure{
-		"t1": &dataset.Structure{
-			Format: dataset.CsvDataFormat,
+		"t1": {
+			Format: dataset.CSVDataFormat,
 			Schema: &dataset.Schema{
 				Fields: []*dataset.Field{
-					&dataset.Field{Name: "a", Type: datatypes.Integer},
+					{Name: "a", Type: datatypes.Integer},
 				},
 			},
 		},
