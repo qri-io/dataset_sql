@@ -31,11 +31,6 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 		return "", nil, nil, err
 	}
 
-	// sel, ok := stmt.(*Select)
-	// if !ok {
-	// 	return "", nil, nil, NotYetImplemented("Statements other than 'SELECT'")
-	// }
-
 	q.Abstract = &dataset.AbstractQuery{
 		Structures: map[string]*dataset.Structure{},
 	}
@@ -49,7 +44,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 				for set, prev := range remap {
 					if current == prev {
 						ate.Expr = TableName{Name: TableIdent{set}}
-						return false, nil
+						// return true, nil
 					}
 				}
 
@@ -57,7 +52,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 				i++
 				remap[set] = current
 				ate.Expr = TableName{Name: TableIdent{set}}
-				return false, nil
+				return true, nil
 			}
 		}
 		return true, nil
@@ -95,7 +90,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 								}
 							}
 						}
-						return false, nil
+						// return true, nil
 					}
 				}
 				// }
@@ -260,7 +255,7 @@ func RemapReferences(stmt *Select, remap map[string]string, a, b map[string]*dat
 				}
 
 				tExpr.Expr = TableName{Name: TableIdent{remap[current]}}
-				return false, nil
+				return true, nil
 			}
 		case *ParenTableExpr:
 			// TODO

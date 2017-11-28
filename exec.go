@@ -41,23 +41,11 @@ func Exec(store cafs.Filestore, q *dataset.Query, options ...func(o *ExecOpt)) (
 	return prep.stmt.exec(store, prep)
 }
 
-// CollectColNames grabs a slice of pointers to all columns
-// in a given SQL statement.
-func CollectColNames(stmt Statement) (cols []*ColName) {
-	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
-		if col, ok := node.(*ColName); ok && node != nil {
-			cols = append(cols, col)
-		}
-		return true, nil
-	})
-	return
-}
-
 func (stmt *Select) exec(store cafs.Filestore, prep preparedQuery) (result *dataset.Structure, resultBytes []byte, err error) {
 	q := prep.q
 	absq := q.Abstract
 	cols := CollectColNames(stmt)
-	buf, err := NewResultBuffer(stmt, absq.Structure)
+	buf, err := NewResultBuffer(stmt, absq)
 	if err != nil {
 		return result, nil, err
 	}

@@ -1,8 +1,9 @@
 package dataset_sql
 
 import (
-	"bytes"
+	// "bytes"
 	"fmt"
+
 	"github.com/qri-io/dataset"
 	// "github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset/dsio"
@@ -11,15 +12,15 @@ import (
 // NewResultBuffer returns either a *RowBuffer or *dsio.Buffer depending on
 // which is required. RowBuffer is (much) more expensive but supports introspection
 // into already-written rows
-func NewResultBuffer(stmt Statement, st *dataset.Structure) (dsio.RowReadWriter, error) {
+func NewResultBuffer(stmt Statement, aq *dataset.AbstractQuery) (dsio.RowReadWriter, error) {
 	if needsRowBuffer(stmt) {
-		cfg, err := statementRowBufferCfg(st, stmt)
+		cfg, err := statementRowBufferCfg(stmt, aq)
 		if err != nil {
 			return nil, err
 		}
-		return dsio.NewStructuredRowBuffer(st, func(o *dsio.StructuredRowBufferCfg) { *o = *cfg })
+		return dsio.NewStructuredRowBuffer(aq.Structure, func(o *dsio.StructuredRowBufferCfg) { *o = *cfg })
 	}
-	return dsio.NewStructuredBuffer(st)
+	return dsio.NewStructuredBuffer(aq.Structure)
 }
 
 // Checks to see if we need a RowBuffer at all. Statements that don't contain
@@ -37,7 +38,7 @@ func needsRowBuffer(stmt Statement) bool {
 }
 
 // statementRowBufferCfg gives a configuration for a StructuredRowBuffer based on a sql Statement
-func statementRowBufferCfg(st *dataset.Structure, stmt Statement) (*dsio.StructuredRowBufferCfg, error) {
+func statementRowBufferCfg(stmt Statement, aq *dataset.AbstractQuery) (*dsio.StructuredRowBufferCfg, error) {
 	sel, ok := stmt.(*Select)
 	if !ok {
 		// TODO - need to implement this for all types of statements
@@ -52,16 +53,22 @@ func statementRowBufferCfg(st *dataset.Structure, stmt Statement) (*dsio.Structu
 
 	orders := []*dataset.Field{}
 	for _, o := range sel.OrderBy {
-		// TODO - horrible hack, will break when sorting on multiple tables, or with non-abstract
-		// statements.
-		str := String(o.Expr)
-		str = string(bytes.TrimPrefix([]byte(str), []byte("t1.")))
-		idx := st.StringFieldIndex(str)
-		desc = o.Direction == "desc"
-		if idx < 0 {
-			return nil, fmt.Errorf("couldn't find sort index: %s", String(o.Expr))
+		if cn, ok := o.Expr.(*ColName); ok {
+			st := aq.Structures[cn.Qualifier.String()]
+			if st == nil {
+				return nil, fmt.Errorf("couldn't find abstract structure reference: %s", cn.Qualifier.String())
+			}
+			str := String(cn.Name)
+			// str = string(bytes.TrimPrefix([]byte(str), []byte("t1.")))
+			idx := st.StringFieldIndex(str)
+			desc = o.Direction == "desc"
+			if idx < 0 {
+				return nil, fmt.Errorf("couldn't find sort index: %s", String(o.Expr))
+			}
+			orders = append(orders, st.Schema.Fields[idx])
+		} else {
+			return nil, fmt.Errorf("unsupported sort value: %s", String(o.Expr))
 		}
-		orders = append(orders, st.Schema.Fields[idx])
 	}
 
 	return &dsio.StructuredRowBufferCfg{

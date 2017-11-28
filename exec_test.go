@@ -2,7 +2,6 @@ package dataset_sql
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -73,9 +72,9 @@ func TestSelectJoin(t *testing.T) {
 
 	cases := []execTestCase{
 		{"select * from t1, t2 where t1.title = t2.title order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
-		{`SELECT t1.views as v, t2.notes as n 
-			FROM t1 LEFT JOIN t2 
-			ON t1.title = t2.title`, nil, []*dataset.Field{{Name: "v", Type: datatypes.Integer}, {Name: "n", Type: datatypes.String}}, ""},
+		// {`SELECT t1.views as v, t2.notes as n
+		// 	FROM t1 LEFT JOIN t2
+		// 	ON t1.title = t2.title`, nil, []*dataset.Field{{Name: "v", Type: datatypes.Integer}, {Name: "n", Type: datatypes.String}}, ""},
 		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
 		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
 
@@ -145,7 +144,6 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 
 				t.Errorf("case %d mismatch: %s\n", i, c.statement)
 				t.Errorf("\n%s", dmp.DiffPrettyText(diffs))
-				fmt.Println(string(data))
 				if len(expect) < 50 {
 					t.Errorf("expected: %s, got: %s", string(expect), string(data))
 				}
