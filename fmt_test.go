@@ -4,60 +4,66 @@ import (
 	"testing"
 
 	"github.com/qri-io/dataset"
-	"github.com/qri-io/dataset/datatypes"
 )
 
 func TestFormat(t *testing.T) {
-
-	q1 := &dataset.Query{
-		Abstract: &dataset.AbstractQuery{
-			Statement: "select city, amount, date from precip",
-		},
-		Resources: map[string]*dataset.Dataset{
-			"precip": &dataset.Dataset{
-				Structure: &dataset.Structure{
-					Format: dataset.CSVDataFormat,
-					Schema: &dataset.Schema{
-						Fields: []*dataset.Field{
-							&dataset.Field{Name: "city", Type: datatypes.String},
-							&dataset.Field{Name: "amount", Type: datatypes.Float},
-							&dataset.Field{Name: "precip_type", Type: datatypes.String},
-							&dataset.Field{Name: "date", Type: datatypes.Date},
-						},
-					},
-				},
-			},
-		},
-	}
-
 	_, resources, err := makeTestStore()
 	if err != nil {
 		t.Errorf("error creating test data: %s", err.Error())
 		return
 	}
 
-	q2 := &dataset.Query{
-		Abstract: &dataset.AbstractQuery{
-			Statement: "select * from one, two where one.title = two.title order by one.views desc",
-		},
-		Resources: map[string]*dataset.Dataset{
-			"one": resources["t1"],
-			"two": resources["t2"],
-		},
-	}
-
 	cases := []struct {
-		q       *dataset.Query
-		stmtStr string
-		remap   map[string]string
-		err     string
+		inStmt        string
+		stmtStr       string
+		resourceNames map[string]string
+		remap         map[string]string
+		err           string
 	}{
-		{q1, "select t1.a, t1.b, t1.d from t1", map[string]string{"t1": "precip"}, ""},
-		{q2, "select * from t1, t2 where t1.b = t2.b order by t1.c desc", map[string]string{"t1": "one", "t2": "two"}, ""},
+		{
+			"select city, amount, date from precip",
+			"",
+			map[string]string{"precip": "nonexistent"},
+			nil,
+			"couldn't find resource for table name: precip",
+		},
+		{
+			"select * from one, two where one.title = two.title order by one.views desc",
+			"select * from t1, t2 where t1.b = t2.b order by t1.c desc",
+			map[string]string{"one": "t1", "two": "t2"},
+			map[string]string{"t1": "one", "t2": "two"},
+			"",
+		},
+		{
+			"select * from foo, bar where foo.title = bar.title order by bar.views desc",
+			"select * from t1, t2 where t1.b = t2.b order by t2.c desc",
+			map[string]string{"foo": "t1", "bar": "t2"},
+			map[string]string{"t1": "foo", "t2": "bar"},
+			"",
+		},
+		{
+			"select title from foo, bar where foo.title = bar.title order by bar.views desc",
+			"",
+			map[string]string{"foo": "t1", "bar": "t2"},
+			nil,
+			"column reference 'title' is ambiguous, please specify the dataset name for this table",
+		},
 	}
 
 	for i, c := range cases {
-		stmtStr, _, remap, err := Format(c.q)
+		r := map[string]*dataset.Dataset{}
+		for key, name := range c.resourceNames {
+			r[key] = resources[name]
+		}
+
+		q := &dataset.Query{
+			Abstract: &dataset.AbstractQuery{
+				Statement: c.inStmt,
+			},
+			Resources: r,
+		}
+
+		stmtStr, _, remap, err := Format(q)
 		if !(err == nil && c.err == "" || err != nil && err.Error() == c.err) {
 			t.Errorf("case %d error mismatch. expected: '%s', got: '%s'", i, c.err, err)
 			continue
