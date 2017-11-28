@@ -71,12 +71,12 @@ func TestSelectJoin(t *testing.T) {
 	created, title, views, rating, notes := t1f[0], t1f[1], t1f[2], t1f[3], t1f[4]
 
 	cases := []execTestCase{
-		{"select * from t1, t2 where t1.title = t2.title order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
-		{`SELECT t1.views as v, t2.notes as n 
-			FROM t1 LEFT JOIN t2 
+		{"select * from t1, t2 where t1.notes = t2.notes order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
+		{`SELECT t1.views as v, t2.notes as n
+			FROM t1 LEFT JOIN t2
 			ON t1.title = t2.title`, nil, []*dataset.Field{{Name: "v", Type: datatypes.Integer}, {Name: "n", Type: datatypes.String}}, ""},
-		// {"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 1, ""},
-		// {"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, 1, ""},
+		{"select * from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, ""},
+		{"select t1.title, t2.title from t1, t2 where t1.notes = t2.notes", nil, []*dataset.Field{title, title}, ""},
 
 		// TODO - need to check result structure name on this one:
 		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2, ""},

@@ -7,6 +7,8 @@ import (
 	"github.com/qri-io/dataset/datatypes"
 )
 
+// StatementTableNames extracts the names of all referenced tables
+// from a given statement
 func StatementTableNames(sql string) ([]string, error) {
 	stmt, err := Parse(sql)
 	if err != nil {
@@ -31,11 +33,6 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 		return "", nil, nil, err
 	}
 
-	// sel, ok := stmt.(*Select)
-	// if !ok {
-	// 	return "", nil, nil, NotYetImplemented("Statements other than 'SELECT'")
-	// }
-
 	q.Abstract = &dataset.AbstractQuery{
 		Structures: map[string]*dataset.Structure{},
 	}
@@ -49,7 +46,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 				for set, prev := range remap {
 					if current == prev {
 						ate.Expr = TableName{Name: TableIdent{set}}
-						return false, nil
+						// return true, nil
 					}
 				}
 
@@ -57,7 +54,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 				i++
 				remap[set] = current
 				ate.Expr = TableName{Name: TableIdent{set}}
-				return false, nil
+				return true, nil
 			}
 		}
 		return true, nil
@@ -74,31 +71,31 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 		q.Abstract.Structures[mapped] = q.Resources[ref].Structure.Abstract()
 	}
 
+	if err := containsAmbiguousReference(stmt, q.Resources); err != nil {
+		return "", nil, nil, err
+	}
+
 	// This is a basic-column name rewriter from concrete to abstract
 	err = stmt.WalkSubtree(func(node SQLNode) (bool, error) {
-		// if ae, ok := node.(*AliasedExpr); ok && ae != nil {
 		if cn, ok := node.(*ColName); ok && cn != nil {
-			// TODO - check qualifier to avoid extra loopage
-			// if cn.Qualifier.String() != "" {
-			// 	for _, f := range ds.Query.Structures[cn.Qualifier.String()].Schema.Fields {
-			// 		if cn.Name.String() ==
-			// 	}
-			// }
-			for con, r := range q.Resources {
-				for i, f := range r.Structure.Schema.Fields {
+			t := cn.Qualifier.String()
+			for concreteName, resource := range q.Resources {
+				if t != "" && concreteName != t {
+					continue
+				}
+				for i, f := range resource.Structure.Schema.Fields {
 					if f.Name == cn.Name.String() {
-						for mapped, ref := range remap {
-							if ref == con {
+						for abstName, conName := range remap {
+							if conName == concreteName {
 								*cn = ColName{
-									Name:      NewColIdent(q.Abstract.Structures[mapped].Schema.Fields[i].Name),
-									Qualifier: TableName{Name: NewTableIdent(mapped)},
+									Name:      NewColIdent(q.Abstract.Structures[abstName].Schema.Fields[i].Name),
+									Qualifier: TableName{Name: NewTableIdent(abstName)},
 								}
 							}
 						}
-						return false, nil
+						return true, nil
 					}
 				}
-				// }
 			}
 		}
 		return true, nil
@@ -111,6 +108,27 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 	stmt.Format(buf)
 
 	return buf.String(), stmt, remap, nil
+}
+
+func containsAmbiguousReference(stmt Statement, resources map[string]*dataset.Dataset) error {
+	return stmt.WalkSubtree(func(node SQLNode) (bool, error) {
+		if col, ok := node.(*ColName); ok && col != nil {
+			qual := col.Qualifier.String()
+			if qual != "" {
+				return true, nil
+			}
+			ref := 0
+			for _, ds := range resources {
+				if ds.Structure.StringFieldIndex(col.Name.String()) >= 0 {
+					ref++
+				}
+				if ref > 1 {
+					return false, fmt.Errorf("column reference '%s' is ambiguous, please specify the dataset name for this table", String(col))
+				}
+			}
+		}
+		return true, nil
+	})
 }
 
 // abstractStructures reads a map of tablename : Structure, and generates an abstract form of that same map,
@@ -145,9 +163,16 @@ EXPRESSIONS:
 		switch sexpr := node.(type) {
 		case *StarExpr:
 			name := sexpr.TableName.String()
-			for tableName, r := range resources {
-				// we add fields if the names match, or if no name is specified
-				if name == "" || tableName == name {
+			if name == "" {
+				// unqualified star expressions should join in the order tables are referenced in
+				// the from clause
+				for _, name := range sel.From.TableNames() {
+					if r := resources[name]; r != nil {
+						st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
+					}
+				}
+			} else {
+				if r := resources[name]; r != nil {
 					st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
 				}
 			}
@@ -260,7 +285,7 @@ func RemapReferences(stmt *Select, remap map[string]string, a, b map[string]*dat
 				}
 
 				tExpr.Expr = TableName{Name: TableIdent{remap[current]}}
-				return false, nil
+				return true, nil
 			}
 		case *ParenTableExpr:
 			// TODO

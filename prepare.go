@@ -110,7 +110,7 @@ func fitASTResources(ast SQLNode, resources map[string]*dataset.Structure) error
 	visit = func(parent SQLNode) func(node SQLNode) (bool, error) {
 		return func(child SQLNode) (bool, error) {
 			if child == nil {
-				return false, nil
+				return true, nil
 			}
 
 			switch node := child.(type) {
@@ -120,7 +120,7 @@ func fitASTResources(ast SQLNode, resources map[string]*dataset.Structure) error
 					if err != nil {
 						return false, err
 					}
-					return false, replaceSelectExprs(parent, node, se)
+					return true, replaceSelectExprs(parent, node, se)
 				}
 			}
 			return true, nil

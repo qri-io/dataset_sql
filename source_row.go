@@ -15,6 +15,19 @@ import (
 // identitifed by a string
 type SourceRow map[string][][]byte
 
+// CollectColNames grabs a slice of pointers to all columns
+// in a given SQL statement, used to avoid re-traversing the tree
+// to find all the places column pointers live
+func CollectColNames(stmt Statement) (cols []*ColName) {
+	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
+		if col, ok := node.(*ColName); ok && node != nil {
+			cols = append(cols, col)
+		}
+		return true, nil
+	})
+	return
+}
+
 // SetSourceRow sets ColName values to the current SourceRow
 // value for evaluation
 func SetSourceRow(cols []*ColName, sr SourceRow) error {
@@ -162,7 +175,7 @@ type SourceRowFilter struct {
 	test     *Where
 	calcAll  bool
 	distinct bool
-	buf      *RowBuffer
+	buf      *dsio.StructuredRowBuffer
 }
 
 func NewSourceRowFilter(ast Statement, buf dsio.RowReadWriter) (srf *SourceRowFilter, err error) {
@@ -172,7 +185,7 @@ func NewSourceRowFilter(ast Statement, buf dsio.RowReadWriter) (srf *SourceRowFi
 		srf.distinct = true
 	}
 
-	if rowBuf, ok := buf.(*RowBuffer); ok {
+	if rowBuf, ok := buf.(*dsio.StructuredRowBuffer); ok {
 		srf.buf = rowBuf
 	}
 
