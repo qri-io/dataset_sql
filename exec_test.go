@@ -2,6 +2,7 @@ package dataset_sql
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -144,6 +145,7 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 
 				t.Errorf("case %d mismatch: %s\n", i, c.statement)
 				t.Errorf("\n%s", dmp.DiffPrettyText(diffs))
+				fmt.Println(string(data))
 				if len(expect) < 50 {
 					t.Errorf("expected: %s, got: %s", string(expect), string(data))
 				}

@@ -1,7 +1,6 @@
 package dataset_sql
 
 import (
-	"fmt"
 	"github.com/qri-io/dataset/dsfs"
 	"testing"
 
@@ -97,7 +96,6 @@ func TestPreparedQueryPath(t *testing.T) {
 		return
 	}
 
-	fmt.Println(r2.Query.Path(), path)
 	if !r2.Query.Path().Equal(path) {
 		t.Errorf("path mistmatch. expected: %s, got: %s", r2.Query.Path().String(), path.String())
 		return

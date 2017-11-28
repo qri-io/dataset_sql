@@ -162,7 +162,7 @@ type SourceRowFilter struct {
 	test     *Where
 	calcAll  bool
 	distinct bool
-	buf      *RowBuffer
+	buf      *dsio.StructuredRowBuffer
 }
 
 func NewSourceRowFilter(ast Statement, buf dsio.RowReadWriter) (srf *SourceRowFilter, err error) {
@@ -172,7 +172,7 @@ func NewSourceRowFilter(ast Statement, buf dsio.RowReadWriter) (srf *SourceRowFi
 		srf.distinct = true
 	}
 
-	if rowBuf, ok := buf.(*RowBuffer); ok {
+	if rowBuf, ok := buf.(*dsio.StructuredRowBuffer); ok {
 		srf.buf = rowBuf
 	}
 
