@@ -1,14 +1,18 @@
 package dataset_sql
 
 import (
-	"fmt"
-
 	"github.com/qri-io/cafs"
 	"github.com/qri-io/dataset"
 )
 
 type ExecOpt struct {
 	Format dataset.DataFormat
+}
+
+func DefaultExecOpts() *ExecOpt {
+	return &ExecOpt{
+		Format: dataset.CSVDataFormat,
+	}
 }
 
 func opts(options ...func(*ExecOpt)) *ExecOpt {
@@ -21,7 +25,7 @@ func opts(options ...func(*ExecOpt)) *ExecOpt {
 	return o
 }
 
-func Exec(store cafs.Filestore, q *dataset.Query, options ...func(o *ExecOpt)) (result *dataset.Structure, resultBytes []byte, err error) {
+func Exec(store cafs.Filestore, query *dataset.Transform, options ...func(o *ExecOpt)) (result *dataset.Transform, resultBytes []byte, err error) {
 	opts := &ExecOpt{
 		Format: dataset.CSVDataFormat,
 	}
@@ -29,27 +33,21 @@ func Exec(store cafs.Filestore, q *dataset.Query, options ...func(o *ExecOpt)) (
 		option(opts)
 	}
 
-	if q.Syntax != "sql" {
-		return nil, nil, fmt.Errorf("Invalid syntax: '%s' sql_dataset only supports sql syntax. ", q.Syntax)
-	}
-
-	prep, err := Prepare(q, opts)
+	stmt, abst, err := Format(query)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return prep.stmt.exec(store, prep)
+	return stmt.exec(store, query, abst)
 }
 
-func (stmt *Select) exec(store cafs.Filestore, prep preparedQuery) (result *dataset.Structure, resultBytes []byte, err error) {
-	q := prep.q
-	absq := q.Abstract
+func (stmt *Select) exec(store cafs.Filestore, query, absq *dataset.Transform) (result *dataset.Transform, resultBytes []byte, err error) {
 	cols := CollectColNames(stmt)
 	buf, err := NewResultBuffer(stmt, absq)
 	if err != nil {
 		return result, nil, err
 	}
-	srg, err := NewSourceRowGenerator(store, prep.paths, absq.Structures)
+	srg, err := NewSourceRowGenerator(store, absq.Resources)
 	if err != nil {
 		return result, nil, err
 	}
@@ -57,6 +55,7 @@ func (stmt *Select) exec(store cafs.Filestore, prep preparedQuery) (result *data
 	if err != nil {
 		return result, nil, err
 	}
+
 	rrg, err := NewResultRowGenerator(stmt, absq.Structure)
 	if err != nil {
 		return result, nil, err
@@ -102,41 +101,41 @@ func (stmt *Select) exec(store cafs.Filestore, prep preparedQuery) (result *data
 	}
 
 	// TODO - rename / deref result var
-	result = prep.result
+	result = query
 	resultBytes = buf.Bytes()
 	return
 }
 
-func (node *Union) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Union) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("union statements")
 }
-func (node *Insert) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Insert) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("insert statements")
 }
-func (node *Update) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Update) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("update statements")
 }
-func (node *Delete) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Delete) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("delete statements")
 }
-func (node *Set) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Set) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("set statements")
 }
-func (node *DDL) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *DDL) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("ddl statements")
 }
-func (node *ParenSelect) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *ParenSelect) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("ParenSelect statements")
 }
-func (node *Show) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Show) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("Show statements")
 }
-func (node *Use) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *Use) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("Use statements")
 }
-func (node *OtherRead) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *OtherRead) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherRead statements")
 }
-func (node *OtherAdmin) exec(store cafs.Filestore, prep preparedQuery) (*dataset.Structure, []byte, error) {
+func (node *OtherAdmin) exec(store cafs.Filestore, query, abst *dataset.Transform) (*dataset.Transform, []byte, error) {
 	return nil, nil, NotYetImplemented("OtherAdmin statements")
 }

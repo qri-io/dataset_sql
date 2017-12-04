@@ -2,7 +2,8 @@ package dataset_sql
 
 import (
 	"fmt"
-	"github.com/ipfs/go-datastore"
+	"github.com/qri-io/dataset/validate"
+
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
@@ -26,18 +27,49 @@ func StatementTableNames(sql string) ([]string, error) {
 // This will be *heavily* refined, improved, and moved into a
 // separate package
 // TODO - ^^
-func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
-	remap := map[string]string{}
-	stmt, err := Parse(q.Abstract.Statement)
+// It's expected that the query to be exectuted will be a string in the
+// given datset.Data value
+// Format will modify the incoming
+func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abst *dataset.Transform, err error) {
+	opt := DefaultExecOpts()
+	for _, o := range opts {
+		o(opt)
+	}
+
+	stmt, err = Parse(q.Data)
 	if err != nil {
-		return "", nil, nil, err
+		return
 	}
 
-	q.Abstract = &dataset.AbstractQuery{
-		Structures: map[string]*dataset.Structure{},
+	if q.Syntax != "sql" {
+		return nil, nil, fmt.Errorf("Invalid syntax: '%s' dataset_sql only supports sql syntax. ", q.Syntax)
 	}
 
+	if err = validResources(q.Resources); err != nil {
+		return
+	}
+
+	err = RemoveUnusedReferences(stmt, q)
+	if err != nil {
+		return
+	}
+
+	if err = containsAmbiguousReference(stmt, q.Resources); err != nil {
+		return
+	}
+
+	q.Structure, err = ResultStructure(stmt, q.Resources, opt)
+	if err != nil {
+		return
+	}
+
+	abst = &dataset.Transform{
+		Resources: map[string]*dataset.Dataset{},
+	}
+
+	// this is a basic table-name rewriter from concrete to abstract
 	i := 0
+	remap := map[string]string{}
 	stmt.WalkSubtree(func(node SQLNode) (bool, error) {
 		if ate, ok := node.(*AliasedTableExpr); ok && ate != nil {
 			switch t := ate.Expr.(type) {
@@ -46,7 +78,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 				for set, prev := range remap {
 					if current == prev {
 						ate.Expr = TableName{Name: TableIdent{set}}
-						// return true, nil
+						return true, nil
 					}
 				}
 
@@ -60,22 +92,17 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 		return true, nil
 	})
 
-	paths := map[string]datastore.Key{}
 	// collect table references
 	for mapped, ref := range remap {
-		// for i, adr := range stmt.References() {
 		if q.Resources[ref] == nil {
-			return "", nil, nil, fmt.Errorf("couldn't find resource for table name: %s", ref)
+			err = fmt.Errorf("couldn't find resource for table name: %s", ref)
+			return
 		}
-		paths[mapped] = q.Resources[ref].Data
-		q.Abstract.Structures[mapped] = q.Resources[ref].Structure.Abstract()
+		abst.Resources[mapped] = q.Resources[ref].Abstract()
+		abst.Resources[mapped].Data = q.Resources[ref].Data
 	}
 
-	if err := containsAmbiguousReference(stmt, q.Resources); err != nil {
-		return "", nil, nil, err
-	}
-
-	// This is a basic-column name rewriter from concrete to abstract
+	// This is a basic column-name rewriter from concrete to abstract
 	err = stmt.WalkSubtree(func(node SQLNode) (bool, error) {
 		if cn, ok := node.(*ColName); ok && cn != nil {
 			t := cn.Qualifier.String()
@@ -88,7 +115,7 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 						for abstName, conName := range remap {
 							if conName == concreteName {
 								*cn = ColName{
-									Name:      NewColIdent(q.Abstract.Structures[abstName].Schema.Fields[i].Name),
+									Name:      NewColIdent(abst.Resources[abstName].Structure.Schema.Fields[i].Name),
 									Qualifier: TableName{Name: NewTableIdent(abstName)},
 								}
 							}
@@ -101,13 +128,40 @@ func Format(q *dataset.Query) (string, Statement, map[string]string, error) {
 		return true, nil
 	})
 	if err != nil {
-		return "", nil, nil, err
+		return
 	}
 
-	buf := NewTrackedBuffer(nil)
-	stmt.Format(buf)
+	q.Syntax = "sql"
+	abst.Syntax = "sql"
+	abst.Data = String(stmt)
+	abst.Structure = q.Structure.Abstract()
 
-	return buf.String(), stmt, remap, nil
+	// fmt.Println("formatted----------")
+	// fmt.Println(String(stmt))
+	// fmt.Println(q.Resources)
+	// fmt.Println(remap)
+	// fmt.Println(abst.Resources)
+	// fmt.Println(q.Structure.Schema.FieldNames())
+	// fmt.Println(abst.Structure.Schema.FieldNames())
+
+	err = PrepareStatement(stmt, abst.Resources)
+
+	return
+}
+
+func validResources(resources map[string]*dataset.Dataset) error {
+	for name, ds := range resources {
+		if err := validate.ValidName(name); err != nil {
+			return err
+		}
+		if ds == nil {
+			return fmt.Errorf("invalid resource reference: %s", name)
+		}
+		if ds.Structure == nil {
+			return fmt.Errorf("dataset structure is required for resource '%s'", name)
+		}
+	}
+	return nil
 }
 
 func containsAmbiguousReference(stmt Statement, resources map[string]*dataset.Dataset) error {
@@ -150,7 +204,7 @@ func abstractStructures(concrete map[string]*dataset.Structure) (algStructures m
 
 // ResultStructure determines the structure of the output for a select statement
 // and a provided resource table map
-func ResultStructure(stmt Statement, resources map[string]*dataset.Structure, opts *ExecOpt) (*dataset.Structure, error) {
+func ResultStructure(stmt Statement, resources map[string]*dataset.Dataset, opts *ExecOpt) (*dataset.Structure, error) {
 	sel, ok := stmt.(*Select)
 	if !ok {
 		return nil, NotYetImplemented("statements other than select")
@@ -168,12 +222,12 @@ EXPRESSIONS:
 				// the from clause
 				for _, name := range sel.From.TableNames() {
 					if r := resources[name]; r != nil {
-						st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
+						st.Schema.Fields = append(st.Schema.Fields, r.Structure.Schema.Fields...)
 					}
 				}
 			} else {
 				if r := resources[name]; r != nil {
-					st.Schema.Fields = append(st.Schema.Fields, r.Schema.Fields...)
+					st.Schema.Fields = append(st.Schema.Fields, r.Structure.Schema.Fields...)
 				}
 			}
 		case *AliasedExpr:
@@ -190,7 +244,7 @@ EXPRESSIONS:
 					if r == nil {
 						return nil, ErrUnrecognizedReference(String(exp))
 					}
-					for _, field := range r.Schema.Fields {
+					for _, field := range r.Structure.Schema.Fields {
 						if col == field.Name {
 							if f.Name == "" {
 								f.Name = field.Name
@@ -210,7 +264,7 @@ EXPRESSIONS:
 				}
 
 				for _, rsc := range resources {
-					for _, field := range rsc.Schema.Fields {
+					for _, field := range rsc.Structure.Schema.Fields {
 						if col == field.Name {
 							if f.Type != datatypes.Unknown {
 								return nil, ErrAmbiguousReference(String(exp))
@@ -250,7 +304,7 @@ EXPRESSIONS:
 // RemoveUnusedReferences sets ds.Resources to a new map that that contains
 // only datasets refrerenced in the provided select statement,
 // it errors if it cannot find a named dataset from the provided ds.Resources map.
-func RemoveUnusedReferences(stmt Statement, q *dataset.Query) error {
+func RemoveUnusedReferences(stmt Statement, q *dataset.Transform) error {
 	sel, ok := stmt.(*Select)
 	if !ok {
 		return NotYetImplemented("statements other than select")

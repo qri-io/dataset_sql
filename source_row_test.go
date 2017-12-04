@@ -1,10 +1,10 @@
 package dataset_sql
 
 import (
-	"github.com/ipfs/go-datastore"
+	"testing"
+
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
-	"testing"
 )
 
 func TestSourceRowGenerator(t *testing.T) {
@@ -14,14 +14,14 @@ func TestSourceRowGenerator(t *testing.T) {
 		return
 	}
 
-	datamap := map[string]datastore.Key{}
-	st := map[string]*dataset.Structure{}
-	for _, name := range []string{"t1", "t2"} {
-		datamap[name] = resources[name].Data
-		st[name] = resources[name].Structure
-	}
+	// datamap := map[string]datastore.Key{}
+	// st := map[string]*dataset.Structure{}
+	// for _, name := range []string{"t1", "t2"} {
+	// 	datamap[name] = datastore.NewKey(resources[name].Data)
+	// 	st[name] = resources[name].Structure
+	// }
 
-	srg, err := NewSourceRowGenerator(store, datamap, st)
+	srg, err := NewSourceRowGenerator(store, map[string]*dataset.Dataset{"t1": resources["t1"], "t2": resources["t2"]})
 	if err != nil {
 		t.Errorf("error creating generator: %s", err.Error())
 		return
@@ -57,12 +57,14 @@ func TestSourceRowFilter(t *testing.T) {
 		return
 	}
 
-	resources := map[string]*dataset.Structure{
+	resources := map[string]*dataset.Dataset{
 		"t1": {
-			Format: dataset.CSVDataFormat,
-			Schema: &dataset.Schema{
-				Fields: []*dataset.Field{
-					{Name: "a", Type: datatypes.Integer},
+			Structure: &dataset.Structure{
+				Format: dataset.CSVDataFormat,
+				Schema: &dataset.Schema{
+					Fields: []*dataset.Field{
+						{Name: "a", Type: datatypes.Integer},
+					},
 				},
 			},
 		},
