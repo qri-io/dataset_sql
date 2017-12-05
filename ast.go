@@ -115,7 +115,7 @@ func GenerateParsedQuery(node SQLNode) *ParsedQuery {
 // Statement represents a statement.
 type Statement interface {
 	iStatement()
-	exec(cafs.Filestore, preparedQuery) (*dataset.Structure, []byte, error)
+	exec(cafs.Filestore, *dataset.Transform, *dataset.Transform) (*dataset.Transform, []byte, error)
 	References() []string
 	SQLNode
 }
@@ -144,7 +144,7 @@ type SelectStatement interface {
 	iInsertRows()
 	AddOrder(*Order)
 	SetLimit(*Limit)
-	exec(cafs.Filestore, preparedQuery) (*dataset.Structure, []byte, error)
+	exec(cafs.Filestore, *dataset.Transform, *dataset.Transform) (*dataset.Transform, []byte, error)
 	References() []string
 	SQLNode
 }

@@ -1,18 +1,16 @@
 package dataset_sql
 
 import (
-	// "bytes"
 	"fmt"
 
 	"github.com/qri-io/dataset"
-	// "github.com/qri-io/dataset/datatypes"
 	"github.com/qri-io/dataset/dsio"
 )
 
 // NewResultBuffer returns either a *RowBuffer or *dsio.Buffer depending on
 // which is required. RowBuffer is (much) more expensive but supports introspection
 // into already-written rows
-func NewResultBuffer(stmt Statement, aq *dataset.AbstractQuery) (dsio.RowReadWriter, error) {
+func NewResultBuffer(stmt Statement, aq *dataset.Transform) (dsio.RowReadWriter, error) {
 	if needsRowBuffer(stmt) {
 		cfg, err := statementRowBufferCfg(stmt, aq)
 		if err != nil {
@@ -38,7 +36,7 @@ func needsRowBuffer(stmt Statement) bool {
 }
 
 // statementRowBufferCfg gives a configuration for a StructuredRowBuffer based on a sql Statement
-func statementRowBufferCfg(stmt Statement, aq *dataset.AbstractQuery) (*dsio.StructuredRowBufferCfg, error) {
+func statementRowBufferCfg(stmt Statement, aq *dataset.Transform) (*dsio.StructuredRowBufferCfg, error) {
 	sel, ok := stmt.(*Select)
 	if !ok {
 		// TODO - need to implement this for all types of statements
@@ -54,7 +52,7 @@ func statementRowBufferCfg(stmt Statement, aq *dataset.AbstractQuery) (*dsio.Str
 	orders := []*dataset.Field{}
 	for _, o := range sel.OrderBy {
 		if cn, ok := o.Expr.(*ColName); ok {
-			st := aq.Structures[cn.Qualifier.String()]
+			st := aq.Resources[cn.Qualifier.String()].Structure
 			if st == nil {
 				return nil, fmt.Errorf("couldn't find abstract structure reference: %s", cn.Qualifier.String())
 			}

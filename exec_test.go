@@ -43,7 +43,6 @@ func TestSelectFields(t *testing.T) {
 			{Name: "min", Type: datatypes.Float},
 		}, "ratings/t1_agg.csv"},
 
-		// TODO - order by isn't working properly.
 		{"select * from t3 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t3_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t3", nil, []*dataset.Field{
 			{Name: "sum", Type: datatypes.Float},
@@ -96,11 +95,9 @@ type execTestCase struct {
 func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []execTestCase, t *testing.T) {
 	for i, c := range cases {
 
-		q := &dataset.Query{
-			Syntax: "sql",
-			Abstract: &dataset.AbstractQuery{
-				Statement: c.statement,
-			},
+		q := &dataset.Transform{
+			Syntax:    "sql",
+			Data:      c.statement,
 			Resources: ns,
 		}
 
@@ -112,18 +109,18 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 			continue
 		}
 
-		if len(results.Schema.Fields) != len(c.fields) {
-			t.Errorf("case %d field length mismatch. expected: %d, got: %d", i, len(c.fields), len(results.Schema.Fields))
+		if len(results.Structure.Schema.Fields) != len(c.fields) {
+			t.Errorf("case %d field length mismatch. expected: %d, got: %d", i, len(c.fields), len(results.Structure.Schema.Fields))
 			continue
 		}
 
 		for j, f := range c.fields {
-			if results.Schema.Fields[j].Name != f.Name {
-				t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, results.Schema.Fields[j].Name)
+			if results.Structure.Schema.Fields[j].Name != f.Name {
+				t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, results.Structure.Schema.Fields[j].Name)
 				break
 			}
-			if results.Schema.Fields[j].Type != f.Type {
-				t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, results.Schema.Fields[j].Type)
+			if results.Structure.Schema.Fields[j].Type != f.Type {
+				t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, results.Structure.Schema.Fields[j].Type)
 				break
 			}
 		}
@@ -143,7 +140,9 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 				}
 
 				t.Errorf("case %d mismatch: %s\n", i, c.statement)
-				t.Errorf("\n%s", dmp.DiffPrettyText(diffs))
+				t.Errorf("diff:\n%s", dmp.DiffPrettyText(diffs))
+				t.Errorf("expected:\n%s", string(expect))
+				t.Errorf("got:\n%s", string(data))
 				if len(expect) < 50 {
 					t.Errorf("expected: %s, got: %s", string(expect), string(data))
 				}
@@ -183,7 +182,7 @@ func makeTestStore() (store cafs.Filestore, datasets map[string]*dataset.Dataset
 		if err != nil {
 			return nil, nil, err
 		}
-		ds.Data = datapath
+		ds.Data = datapath.String()
 		dspath, err := dsfs.SaveDataset(store, ds, true)
 		if err != nil {
 			return nil, nil, err

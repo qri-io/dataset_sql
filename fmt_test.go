@@ -22,23 +22,30 @@ func TestFormat(t *testing.T) {
 	}{
 		{
 			"select city, amount, date from precip",
-			"",
+			"select city, amount, `date` from precip",
 			map[string]string{"precip": "nonexistent"},
 			nil,
-			"couldn't find resource for table name: precip",
+			"invalid resource reference: precip",
 		},
 		{
 			"select * from one, two where one.title = two.title order by one.views desc",
-			"select * from t1, t2 where t1.b = t2.b order by t1.c desc",
+			"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t1.c desc",
 			map[string]string{"one": "t1", "two": "t2"},
 			map[string]string{"t1": "one", "t2": "two"},
 			"",
 		},
 		{
 			"select * from foo, bar where foo.title = bar.title order by bar.views desc",
-			"select * from t1, t2 where t1.b = t2.b order by t2.c desc",
+			"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t2.c desc",
 			map[string]string{"foo": "t1", "bar": "t2"},
 			map[string]string{"t1": "foo", "t2": "bar"},
+			"",
+		},
+		{
+			"select sum(views), avg(views), count(views), max(views), min(views) from foo",
+			"select sum(t1.c), avg(t1.c), count(t1.c), max(t1.c), min(t1.c) from t1",
+			map[string]string{"foo": "t3"},
+			map[string]string{"t1": "foo"},
 			"",
 		},
 		{
@@ -56,35 +63,37 @@ func TestFormat(t *testing.T) {
 			r[key] = resources[name]
 		}
 
-		q := &dataset.Query{
-			Abstract: &dataset.AbstractQuery{
-				Statement: c.inStmt,
-			},
+		q := &dataset.Transform{
+			Syntax:    "sql",
+			Data:      c.inStmt,
 			Resources: r,
 		}
 
-		stmtStr, _, remap, err := Format(q)
+		stmt, abst, err := Format(q)
 		if !(err == nil && c.err == "" || err != nil && err.Error() == c.err) {
 			t.Errorf("case %d error mismatch. expected: '%s', got: '%s'", i, c.err, err)
 			continue
 		}
 
-		if stmtStr != c.stmtStr {
-			t.Errorf("case %d statement mismatch:\nexpected:\n'%s',\ngot:\n'%s'", i, c.stmtStr, stmtStr)
-			continue
-		}
-
-		if len(c.remap) != len(remap) {
-			t.Errorf("case %d remap length mismatch. expected: '%d', got: '%d'", i, len(c.remap), len(remap))
-			t.Errorf("%v", remap)
-			continue
-		}
-
-		for key, v := range c.remap {
-			if remap[key] != v {
-				t.Errorf("case %d key %s mismatch. expected: '%s', got: '%s'", i, key, v, remap[key])
-				break
+		if c.err == "" {
+			stmtStr := String(stmt)
+			if stmtStr != c.stmtStr {
+				t.Errorf("case %d statement mismatch:\nexpected:\n'%s',\ngot:\n'%s'", i, c.stmtStr, stmtStr)
+				continue
 			}
+
+			if len(c.remap) != len(abst.Resources) {
+				t.Errorf("case %d remap length mismatch. expected: '%d', got: '%d'", i, len(c.remap), len(abst.Resources))
+				t.Errorf("%v", abst)
+				continue
+			}
+
+			// for key, v := range c.remap {
+			// 	if remap[key] != v {
+			// 		t.Errorf("case %d key %s mismatch. expected: '%s', got: '%s'", i, key, v, remap[key])
+			// 		break
+			// 	}
+			// }
 		}
 	}
 }

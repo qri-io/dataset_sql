@@ -12,8 +12,8 @@ func TestResultRowGenerator(t *testing.T) {
 		return
 	}
 
-	resources := map[string]*dataset.Structure{
-		"t1": datasets["t1"].Structure,
+	resources := map[string]*dataset.Dataset{
+		"t1": datasets["t1"],
 	}
 
 	stmt, err := Parse("select * from t1")
