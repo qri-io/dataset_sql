@@ -43,7 +43,6 @@ func TestSelectFields(t *testing.T) {
 			{Name: "min", Type: datatypes.Float},
 		}, "ratings/t1_agg.csv"},
 
-		// TODO - order by isn't working properly.
 		{"select * from t3 order by rating", nil, []*dataset.Field{created, title, views, rating, notes}, "ratings/t3_order_rating.csv"},
 		{"select sum(views), avg(views), count(views), max(views), min(views) from t3", nil, []*dataset.Field{
 			{Name: "sum", Type: datatypes.Float},
@@ -141,7 +140,9 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 				}
 
 				t.Errorf("case %d mismatch: %s\n", i, c.statement)
-				t.Errorf("\n%s", dmp.DiffPrettyText(diffs))
+				t.Errorf("diff:\n%s", dmp.DiffPrettyText(diffs))
+				t.Errorf("expected:\n%s", string(expect))
+				t.Errorf("got:\n%s", string(data))
 				if len(expect) < 50 {
 					t.Errorf("expected: %s, got: %s", string(expect), string(data))
 				}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/ipfs/go-datastore"
 	"github.com/qri-io/cafs"
@@ -14,6 +15,15 @@ import (
 // SourceRow is a row of data from a number of different tables
 // identitifed by a string
 type SourceRow map[string][][]byte
+
+// String implements the stringer interface for SourceRow
+func (sr SourceRow) String() string {
+	s := ""
+	for name, row := range sr {
+		s += fmt.Sprintf("%s : %s\n", name, bytes.Join(row, []byte(", ")))
+	}
+	return s
+}
 
 // CollectColNames grabs a slice of pointers to all columns
 // in a given SQL statement, used to avoid re-traversing the tree
@@ -57,6 +67,7 @@ type SourceRowGenerator struct {
 // NewSourceRowGenerator initializes a source row generator
 func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.Dataset) (*SourceRowGenerator, error) {
 	srg := &SourceRowGenerator{store: store, init: true}
+
 	for name, ds := range resources {
 		rdr := &rowReader{
 			name: name,
@@ -68,6 +79,10 @@ func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.D
 		}
 		srg.readers = append(srg.readers, rdr)
 	}
+	// gotta sort resources by name to keep rows determinstic
+	sort.Slice(srg.readers, func(i, j int) bool {
+		return srg.readers[i].name < srg.readers[j].name
+	})
 	return srg, nil
 }
 
@@ -119,7 +134,7 @@ func (srg *SourceRowGenerator) Row() (SourceRow, error) {
 	return sr, nil
 }
 
-// rowReader wraps a dsio.reader with additional required state
+// rowReader wraps a dsio.Reader with additional required state
 type rowReader struct {
 	reader dsio.RowReader
 	name   string
@@ -240,6 +255,7 @@ func (srf *SourceRowFilter) Match() bool {
 	return false
 }
 
+// ShouldWriteRow checks to see if a row should be written to a destination
 func (srf *SourceRowFilter) ShouldWriteRow(row [][]byte) bool {
 	if srf.distinct {
 		return srf.buf.HasRow(row)

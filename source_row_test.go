@@ -1,46 +1,93 @@
 package dataset_sql
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
 )
 
+type TestSourceRow map[string][]string
+
 func TestSourceRowGenerator(t *testing.T) {
+	// we do this test lots to ensure source row generation is determinstic
+	for i := 0; i < 100; i++ {
+		if err := testSourceRowGenerator(); err != nil {
+			t.Errorf("error on test iteration: %d: %s", i, err.Error())
+			return
+		}
+	}
+}
+
+func testSourceRowGenerator() error {
 	store, resources, err := makeTestStore()
 	if err != nil {
-		t.Errorf("error creating test data: %s", err.Error())
-		return
+		return fmt.Errorf("error creating test data: %s", err.Error())
 	}
 
-	// datamap := map[string]datastore.Key{}
-	// st := map[string]*dataset.Structure{}
-	// for _, name := range []string{"t1", "t2"} {
-	// 	datamap[name] = datastore.NewKey(resources[name].Data)
-	// 	st[name] = resources[name].Structure
-	// }
-
-	srg, err := NewSourceRowGenerator(store, map[string]*dataset.Dataset{"t1": resources["t1"], "t2": resources["t2"]})
+	resultf, err := os.Open("testdata/test_source_row_generator.csv")
 	if err != nil {
-		t.Errorf("error creating generator: %s", err.Error())
-		return
+		return fmt.Errorf("error opening data file: %s", err.Error())
+	}
+
+	results := []TestSourceRow{}
+	if err := json.NewDecoder(resultf).Decode(&results); err != nil {
+		return fmt.Errorf("error decoding data json: %s", err.Error())
+	}
+
+	srg, err := NewSourceRowGenerator(store, map[string]*dataset.Dataset{
+		"t1": resources["t1"],
+		"t2": resources["t2"],
+	})
+	if err != nil {
+		return fmt.Errorf("error creating generator: %s", err.Error())
 	}
 
 	count := 0
 	for srg.Next() {
-		count++
-		// TODO - check that rows are iterating the right values
-		_, err := srg.Row()
+		sr, err := srg.Row()
 		if err != nil {
-			t.Errorf("row %d unexpected error: %s", count, err.Error())
-			return
+			return fmt.Errorf("row %d unexpected error: %s", count, err.Error())
 		}
+
+		if err := CompareSourceRows(results[count], sr); err != nil {
+			return fmt.Errorf("row %d unexpected source row mismatch: %s\nrow:\n%s", count, err.Error(), sr.String())
+		}
+		count++
 	}
 
 	if count != 100 {
-		t.Errorf("wrong number of iterations. expected %d, got %d", 100, count)
+		return fmt.Errorf("wrong number of iterations. expected %d, got %d", 100, count)
 	}
+
+	return nil
+}
+
+func CompareSourceRows(a TestSourceRow, b SourceRow) error {
+	if a == nil && b != nil || a != nil && b == nil {
+		return fmt.Errorf("nil mismatch: %s != %s", a, b)
+	}
+
+	if len(a) != len(b) {
+		return fmt.Errorf("sourcerow length mismatch: %d != %d", len(a), len(b))
+	}
+	for name, rowa := range a {
+		rowb := b[name]
+		if len(rowa) != len(rowb) {
+			return fmt.Errorf("row length mismatch: %d != %d", len(rowa), len(rowb))
+		}
+		for i, cell := range rowa {
+			if !bytes.Equal([]byte(cell), rowb[i]) {
+				return fmt.Errorf("byte mismatch on source %s, column: %d. expected: %s, got: %s", name, i, string(cell), string(rowb[i]))
+
+			}
+		}
+	}
+	return nil
 }
 
 func TestSourceRowFilter(t *testing.T) {
