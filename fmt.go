@@ -98,7 +98,7 @@ func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abs
 			err = fmt.Errorf("couldn't find resource for table name: %s", ref)
 			return
 		}
-		abst.Resources[mapped] = q.Resources[ref].Abstract()
+		abst.Resources[mapped] = dataset.Abstract(q.Resources[ref])
 		abst.Resources[mapped].Data = q.Resources[ref].Data
 	}
 
@@ -136,16 +136,7 @@ func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abs
 	abst.Data = String(stmt)
 	abst.Structure = q.Structure.Abstract()
 
-	// fmt.Println("formatted----------")
-	// fmt.Println(String(stmt))
-	// fmt.Println(q.Resources)
-	// fmt.Println(remap)
-	// fmt.Println(abst.Resources)
-	// fmt.Println(q.Structure.Schema.FieldNames())
-	// fmt.Println(abst.Structure.Schema.FieldNames())
-
 	err = PrepareStatement(stmt, abst.Resources)
-
 	return
 }
 
