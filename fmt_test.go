@@ -1,10 +1,47 @@
 package dataset_sql
 
 import (
+	"github.com/ipfs/go-datastore"
 	"testing"
 
 	"github.com/qri-io/dataset"
 )
+
+func TestQueryRecordPath(t *testing.T) {
+	store, resources, err := makeTestStore()
+	if err != nil {
+		t.Errorf("error creating test data: %s", err.Error())
+		return
+	}
+
+	cases := []struct {
+		query *dataset.Transform
+		hash  datastore.Key
+		err   string
+	}{
+		{&dataset.Transform{
+			Syntax: "sql",
+			Data:   "select * from foo",
+			Resources: map[string]*dataset.Dataset{
+				"foo": resources["t1"],
+			}}, datastore.NewKey("/map/QmXHyTpaiStbVAcxMnqyJNMGhaeZacpcKf4GLYqVqBYVoP"), ""},
+	}
+
+	for i, c := range cases {
+		path, err := QueryRecordPath(store, c.query, func(o *ExecOpt) {
+			o.Format = dataset.CSVDataFormat
+		})
+		if !(err == nil && c.err == "" || err != nil && err.Error() == c.err) {
+			t.Errorf("case %d error mismatch. expected: %s, got: %s", i, c.err, err)
+			continue
+		}
+
+		if !c.hash.Equal(path) {
+			t.Errorf("case %d hash mismatch. expected: %s, got: %s", i, c.hash.String(), path.String())
+			continue
+		}
+	}
+}
 
 func TestFormat(t *testing.T) {
 	_, resources, err := makeTestStore()
@@ -27,13 +64,15 @@ func TestFormat(t *testing.T) {
 			nil,
 			"invalid resource reference: precip",
 		},
-		{
-			"select * from one, two where one.title = two.title order by one.views desc",
-			"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t1.c desc",
-			map[string]string{"one": "t1", "two": "t2"},
-			map[string]string{"t1": "one", "t2": "two"},
-			"",
-		},
+		// TODO - this is wrong and kinda passes
+		// {
+		// 	"select * from one, two where one.title = two.title order by one.views desc",
+		// 	"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t1.c desc",
+		// 	map[string]string{"one": "t1", "two": "t2"},
+		// 	map[string]string{"t1": "one", "t2": "two"},
+		// 	"",
+		// },
+		// TODO - this passes, and is wrong!
 		{
 			"select * from foo, bar where foo.title = bar.title order by bar.views desc",
 			"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t2.c desc",

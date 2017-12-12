@@ -101,7 +101,7 @@ func (stmt *Select) exec(store cafs.Filestore, query, absq *dataset.Transform) (
 	}
 
 	// TODO - rename / deref result var
-	result = query
+	result = absq
 	resultBytes = buf.Bytes()
 	return
 }

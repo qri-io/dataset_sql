@@ -115,12 +115,12 @@ func runCases(store cafs.Filestore, ns map[string]*dataset.Dataset, cases []exec
 		}
 
 		for j, f := range c.fields {
-			if results.Structure.Schema.Fields[j].Name != f.Name {
-				t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, results.Structure.Schema.Fields[j].Name)
+			if q.Structure.Schema.Fields[j].Name != f.Name {
+				t.Errorf("case %d field %d name mismatch. expected: %s, got: %s", i, j, f.Name, q.Structure.Schema.Fields[j].Name)
 				break
 			}
-			if results.Structure.Schema.Fields[j].Type != f.Type {
-				t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, results.Structure.Schema.Fields[j].Type)
+			if q.Structure.Schema.Fields[j].Type != f.Type {
+				t.Errorf("case %d field %d type mismatch. expected: %s, got: %s", i, j, f.Type, q.Structure.Schema.Fields[j].Type)
 				break
 			}
 		}

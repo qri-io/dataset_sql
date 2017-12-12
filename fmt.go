@@ -2,10 +2,14 @@ package dataset_sql
 
 import (
 	"fmt"
-	"github.com/qri-io/dataset/validate"
 
+	"github.com/ipfs/go-datastore"
+	"github.com/qri-io/cafs"
+	"github.com/qri-io/cafs/memfs"
 	"github.com/qri-io/dataset"
 	"github.com/qri-io/dataset/datatypes"
+	"github.com/qri-io/dataset/dsfs"
+	"github.com/qri-io/dataset/validate"
 )
 
 // StatementTableNames extracts the names of all referenced tables
@@ -21,6 +25,43 @@ func StatementTableNames(sql string) ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported statement type: %s", String(stmt))
+}
+
+// QueryRecordPath returns the hash of an abstracted query to be excectuted with a given set of resources.
+// the returned key can be used to see if a a given query has been run before
+func QueryRecordPath(store cafs.Filestore, q *dataset.Transform, opts ...func(o *ExecOpt)) (datastore.Key, error) {
+	save := &dataset.Transform{}
+	save.Assign(q)
+	stmt, abst, err := Format(save, func(o *ExecOpt) {
+		o.Format = dataset.CSVDataFormat
+	})
+	if err != nil {
+		return datastore.NewKey(""), fmt.Errorf("formatting error: %s", err.Error())
+	}
+
+	save.Assign(abst)
+	save.Kind = dataset.KindTransform
+	save.Data = String(stmt)
+
+	if save.Structure == nil {
+		return datastore.NewKey(""), fmt.Errorf("structure required to save abstract transform")
+	}
+
+	save.Structure = save.Structure.Abstract()
+
+	// ensure all dataset references are abstract
+	for key, r := range save.Resources {
+		data := r.Data
+		rsc := dataset.Abstract(r)
+		rsc.Data = data
+		save.Resources[key] = rsc
+	}
+
+	data, err := save.MarshalJSON()
+	if err != nil {
+		return datastore.NewKey(""), fmt.Errorf("error marshaling dataset abstract transform to json: %s", err.Error())
+	}
+	return store.Put(memfs.NewMemfileBytes(dsfs.PackageFileTransform.String(), data), false)
 }
 
 // Format places an sql statement in it's standard form.
