@@ -32,6 +32,10 @@ func StatementTableNames(sql string) ([]string, error) {
 func QueryRecordPath(store cafs.Filestore, q *dataset.Transform, opts ...func(o *ExecOpt)) (datastore.Key, error) {
 	save := &dataset.Transform{}
 	save.Assign(q)
+	for key, r := range save.Resources {
+		save.Resources[key] = &dataset.Dataset{Structure: &dataset.Structure{}}
+		save.Resources[key].Assign(r)
+	}
 	stmt, abst, err := Format(save, func(o *ExecOpt) {
 		o.Format = dataset.CSVDataFormat
 	})
