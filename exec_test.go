@@ -85,6 +85,35 @@ func TestSelectJoin(t *testing.T) {
 	runCases(store, resources, cases, t)
 }
 
+func TestSelectGroupBy(t *testing.T) {
+	store, resources, err := makeTestStore()
+	if err != nil {
+		t.Errorf("error creating test data: %s", err.Error())
+		return
+	}
+
+	t1f := resources["state_county_pop"].Structure.Schema.Fields
+	state, county, pop := t1f[0], t1f[1], t1f[2]
+
+	cases := []execTestCase{
+		// // identity test to make sure setup is correct
+		{"select * from state_county_pop", nil, []*dataset.Field{state, county, pop}, "state_county_pop/state_county_pop.csv"},
+		// TODO: get cases to pass
+		// // group by with no aggregate function
+		// {"select * from state_county_pop group by state", nil, []*dataset.Field{state, county, pop, state, county, pop}, "state_county_pop/scp_groupby_state.csv"},
+		// // Aggregate with no group by clause
+		// {"select state, county, sum(population) as pop from state_county_pop", nil, []*dataset.Field{state, county, pop}, "state_county_pop/scp_sum_pop.csv"},
+		// // Group by with aggregate function
+		// {"select state, sum(population) as pop from state_county_pop group by state", nil, []*dataset.Field{state, pop}, "state_county_pop/scp_gb_with_agg.csv"},
+
+		// TODO - need to check result structure name on this one:
+		// {"select * from a as aa, b as bb where a.created = b.created", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, 2, ""},
+		// {"select 1 from a", nil, []*dataset.Field{&dataset.Field{Name: "result", Type: datatypes.Integer}}, 1, ""},
+	}
+
+	runCases(store, resources, cases, t)
+}
+
 type execTestCase struct {
 	statement  string
 	expect     error
@@ -161,6 +190,7 @@ func makeTestStore() (store cafs.Filestore, datasets map[string]*dataset.Dataset
 		{"t1", "ratings/dataset.json", "ratings/t1.csv"},
 		{"t2", "ratings/dataset.json", "ratings/t2.csv"},
 		{"t3", "ratings/dataset.json", "ratings/t3.csv"},
+		{"state_county_pop", "state_county_pop/dataset.json", "state_county_pop/state_county_pop.csv"},
 	}
 
 	for _, td := range testData {
