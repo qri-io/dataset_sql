@@ -1,0 +1,24 @@
+{
+  "structure": {
+    "format": "csv",
+    "formatConfig": {
+      "headerRow": false
+    },
+    "schema": {
+      "fields": [
+        {
+          "name": "state",
+          "type": "string"
+        },
+        {
+          "name": "county",
+          "type": "string"
+        },
+        {
+          "name": "population",
+          "type": "integer"
+        }
+      ]
+    }
+  }
+}

@@ -73,13 +73,13 @@ func TestFormat(t *testing.T) {
 		// 	"",
 		// },
 		// TODO - this passes, and is wrong!
-		{
-			"select * from foo, bar where foo.title = bar.title order by bar.views desc",
-			"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t2.c desc",
-			map[string]string{"foo": "t1", "bar": "t2"},
-			map[string]string{"t1": "foo", "t2": "bar"},
-			"",
-		},
+		// {
+		// 	"select * from foo, bar where foo.title = bar.title order by bar.views desc",
+		// 	"select t1.a as a, t1.b as b, t1.c as c, t1.d as d, t1.e as e from t1, t2 where t1.b = t2.b order by t2.c desc",
+		// 	map[string]string{"foo": "t1", "bar": "t2"},
+		// 	map[string]string{"t1": "foo", "t2": "bar"},
+		// 	"",
+		// },
 		{
 			"select sum(views), avg(views), count(views), max(views), min(views) from foo",
 			"select sum(t1.c), avg(t1.c), count(t1.c), max(t1.c), min(t1.c) from t1",
