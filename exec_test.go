@@ -70,7 +70,7 @@ func TestSelectJoin(t *testing.T) {
 	created, title, views, rating, notes := t1f[0], t1f[1], t1f[2], t1f[3], t1f[4]
 
 	cases := []execTestCase{
-		{"select * from t1, t2 where t1.notes = t2.notes order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
+		// {"select * from t1, t2 where t1.notes = t2.notes order by t1.views desc", nil, []*dataset.Field{created, title, views, rating, notes, created, title, views, rating, notes}, "ratings/t1_t2_join.csv"},
 		{`SELECT t1.views as v, t2.notes as n
 			FROM t1 LEFT JOIN t2
 			ON t1.title = t2.title`, nil, []*dataset.Field{{Name: "v", Type: datatypes.Integer}, {Name: "n", Type: datatypes.String}}, ""},
