@@ -55,9 +55,9 @@ func QueryRecordPath(store cafs.Filestore, q *dataset.Transform, opts ...func(o 
 
 	// ensure all dataset references are abstract
 	for key, r := range save.Resources {
-		data := r.Data
+		data := r.DataPath
 		rsc := dataset.Abstract(r)
-		rsc.Data = data
+		rsc.DataPath = data
 		save.Resources[key] = rsc
 	}
 
@@ -109,6 +109,8 @@ func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abs
 	}
 
 	abst = &dataset.Transform{
+		Syntax:    "sql",
+		Structure: q.Structure.Abstract(),
 		Resources: map[string]*dataset.Dataset{},
 	}
 
@@ -144,7 +146,7 @@ func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abs
 			return
 		}
 		abst.Resources[mapped] = dataset.Abstract(q.Resources[ref])
-		abst.Resources[mapped].Data = q.Resources[ref].Data
+		abst.Resources[mapped].DataPath = q.Resources[ref].DataPath
 	}
 
 	// This is a basic column-name rewriter from concrete to abstract
@@ -176,10 +178,10 @@ func Format(q *dataset.Transform, opts ...func(o *ExecOpt)) (stmt Statement, abs
 		return
 	}
 
-	q.Syntax = "sql"
-	abst.Syntax = "sql"
+	// q.Syntax = "sql"
+	// abst.Syntax = "sql"
 	abst.Data = String(stmt)
-	abst.Structure = q.Structure.Abstract()
+	// abst.Structure = q.Structure.Abstract()
 
 	err = PrepareStatement(stmt, abst.Resources)
 	return

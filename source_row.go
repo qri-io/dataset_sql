@@ -72,7 +72,7 @@ func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.D
 		rdr := &rowReader{
 			name: name,
 			st:   ds.Structure,
-			path: datastore.NewKey(ds.Data),
+			path: datastore.NewKey(ds.DataPath),
 		}
 		if err := rdr.Reset(store); err != nil {
 			return nil, err
@@ -83,6 +83,7 @@ func NewSourceRowGenerator(store cafs.Filestore, resources map[string]*dataset.D
 	sort.Slice(srg.readers, func(i, j int) bool {
 		return srg.readers[i].name < srg.readers[j].name
 	})
+
 	return srg, nil
 }
 

@@ -1,4 +1,7 @@
 {
+  "commit" : {
+    "title" : "initial commit"
+  },
   "structure": {
     "format": "csv",
     "formatConfig": {

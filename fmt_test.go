@@ -24,7 +24,7 @@ func TestQueryRecordPath(t *testing.T) {
 			Data:   "select * from foo",
 			Resources: map[string]*dataset.Dataset{
 				"foo": resources["t1"],
-			}}, datastore.NewKey("/map/QmXHyTpaiStbVAcxMnqyJNMGhaeZacpcKf4GLYqVqBYVoP"), ""},
+			}}, datastore.NewKey("/map/QmYVSw2ccBLC8SWqnhC1Buidq2VBEt4JEe8HUWj74pgH6a"), ""},
 	}
 
 	for i, c := range cases {
