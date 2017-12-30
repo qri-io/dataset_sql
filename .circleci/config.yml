@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/qri-io/dataset_sql
     docker:
-      - image: circleci/cci-demo-go-primary:0.0.2
+      - image: circleci/golang:1.9
         environment:
           GOLANG_ENV: test
           PORT: 3000
